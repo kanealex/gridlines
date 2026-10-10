@@ -1,9 +1,9 @@
 name: Deploy
 
-# Runs on every push to main: pulls the latest main into /var/www/gridlines
-# on the Vultr server and restarts the gridlines service (server/server.py),
-# which Caddy proxies at gridlines.kanealex.com. Uses the same
-# deploy-only SSH key as the homepage, OBD Dash and Semantic Drift (DEPLOY_SSH_KEY secret).
+# Runs on every push to main: syncs the repo to ~/gridlines on the Vultr
+# server and rebuilds the container, the same way Semantic Drift deploys.
+# Caddy proxies gridlines.kanealex.com to it (see README). Uses the same
+# DEPLOY_HOST, DEPLOY_USER and DEPLOY_SSH_KEY secrets as the other apps.
 
 on:
   push:
@@ -14,13 +14,31 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Pull latest main on server
+      - uses: actions/checkout@v4
+
+      - name: Sanity-check the server compiles
+        run: python3 -m py_compile server/server.py
+
+      - name: Sync files to server
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          # data/ holds the scores database and lives only on the server,
+          # so --delete must never touch it.
+          switches: -avz --delete --exclude=.git/ --exclude=.github/ --exclude=data/
+          path: ./
+          remote_path: ~/gridlines/
+          remote_host: ${{ secrets.DEPLOY_HOST }}
+          remote_user: ${{ secrets.DEPLOY_USER }}
+          remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Rebuild and restart the container
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            git -C /var/www/gridlines pull --ff-only
-            git -C /var/www/gridlines log -1 --oneline
-            sudo -n systemctl restart gridlines
+            cd ~/gridlines
+            mkdir -p data
+            docker compose up -d --build
+            docker image prune -f

@@ -33,34 +33,15 @@ Scores are reported by the browser, the same trade-off Semantic Drift makes.
 
 ## Deploy
 
-On the Vultr server:
+Runs the same way as Semantic Drift: `.github/workflows/deploy.yml` rsyncs the repo to `~/gridlines` on the Vultr server and runs `docker compose up -d --build`. The container listens on `127.0.0.1:8123`; scores persist in `~/gridlines/data/gridlines.db` on the host.
 
-1. DNS: an `A` record for `gridlines` pointing at the server.
-2. `git clone https://github.com/kanealex/gridlines /var/www/gridlines`
-3. A systemd service, `/etc/systemd/system/gridlines.service`:
+One-time setup:
 
-        [Unit]
-        Description=Gridlines
-        After=network.target
-
-        [Service]
-        WorkingDirectory=/var/www/gridlines
-        Environment=HOST=127.0.0.1 PORT=8123
-        ExecStart=/usr/bin/python3 server/server.py
-        Restart=always
-        User=www-data
-
-        [Install]
-        WantedBy=multi-user.target
-
-   then `systemctl enable --now gridlines`. `www-data` needs write access to `/var/www/gridlines/data`.
-4. Caddy:
+1. Repository secrets `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_SSH_KEY`, the same values Semantic Drift uses.
+2. DNS: an `A` record for `gridlines` pointing at the server.
+3. Caddy, in `/etc/caddy/Caddyfile`, then `sudo systemctl reload caddy`:
 
         gridlines.kanealex.com {
             encode gzip
             reverse_proxy 127.0.0.1:8123
         }
-
-5. Let the deploy user restart it without a password, e.g. `deploy ALL=NOPASSWD: /usr/bin/systemctl restart gridlines` in `/etc/sudoers.d/gridlines`.
-
-Pushes to `main` then deploy via `.github/workflows/deploy.yml` (SSH in, `git pull --ff-only`, restart the service), using the same `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_SSH_KEY` secrets as the other apps.

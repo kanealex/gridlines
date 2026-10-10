@@ -1,0 +1,10 @@
+# Same setup as Semantic Drift: one container behind Caddy on the Vultr
+# server. Scores live in ./data on the host, so rebuilds keep them.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:8123:8123"
