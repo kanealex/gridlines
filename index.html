@@ -80,7 +80,7 @@
     </div>
   </header>
 
-  <p class="intro">Connect every town to the grid with <b>as little cable as you can</b>, then see whether you can beat a genetic algorithm doing the same. There's a new puzzle every day, and everyone gets the same one.</p>
+  <p class="intro">Connect every town to the grid with <b>as little cable as you can</b>. Play the daily puzzle, work through story mode, or go head to head with a genetic algorithm.</p>
 
   <div class="steps">
     <section class="step">
@@ -106,19 +106,26 @@
     </section>
 
     <section class="step">
-      <h2><span class="step-num">3</span> Fight the algorithm</h2>
-      <p>When you're happy, press <b>Fight the algorithm</b>. A genetic algorithm then tackles the same puzzle while you watch.</p>
+      <h2><span class="step-num">3</span> Pick a mode</h2>
       <ul class="facts">
-        <li>It starts with <b><span data-ga="population"></span> random guesses</b>, each a set of junctions.</li>
+        <li><b>Daily.</b> One new puzzle a day, the same for everyone. Submit once and you're ranked by how close you got to the best known network, from Trainee up to Optimal.</li>
+        <li><b>Story.</b> <span data-levels></span> levels that build from three towns to twelve. Each has a goal to hit and a limit on how many junctions you can use. Meet the goal to unlock the next level, and get closer to the best known network for up to three stars.</li>
+        <li><b>vs Algorithm.</b> Random puzzles against a genetic algorithm on Easy, Normal or Hard. Make your network, then watch it evolve its own. <b>The shortest network wins.</b></li>
+      </ul>
+    </section>
+
+    <section class="step">
+      <h2><span class="step-num">4</span> How the algorithm works</h2>
+      <ul class="facts">
+        <li>It starts with a population of random guesses, each a set of junctions.</li>
         <li>Each generation, the best quarter survive and breed. Children take junctions from both parents, then mutate by gaining, losing or nudging one.</li>
-        <li>After <b><span data-ga="generations"></span> generations</b>, its best network is final.</li>
-        <li><b>The shortest network wins.</b> You get one go at the daily puzzle, and Practice mode has unlimited puzzles.</li>
+        <li>On Normal it runs <b><span data-ga="generations"></span> generations</b> of <b><span data-ga="population"></span> guesses</b>. Hard runs longer with a bigger population.</li>
       </ul>
     </section>
   </div>
 
   <div class="cta-wrap">
-    <a class="cta" href="play.html">Play today's puzzle &rarr;</a>
+    <a class="cta" href="play.html#daily">Play today's puzzle &rarr;</a>
   </div>
 
   <footer>
@@ -129,6 +136,7 @@
 
 <script type="module">
   import { mst, networkLength, greedySteiner, savedPercent, GA_SETTINGS } from "./js/core.js";
+  import { LEVEL_COUNT } from "./js/story.js";
 
   // Small worked examples, drawn with the game's own scoring so the numbers are real.
   // 1 unit = 1 km.
@@ -180,6 +188,7 @@
     el.innerHTML = `<figure>${figure(ex.towns, [], "plain network")}</figure><span class="arrow" aria-hidden="true">&rarr;</span><figure>${figure(ex.towns, junctions, label, base)}</figure>`;
   }
 
+  for (const el of document.querySelectorAll("[data-levels]")) el.textContent = LEVEL_COUNT;
   for (const el of document.querySelectorAll("[data-ga]")) el.textContent = GA_SETTINGS[el.dataset.ga];
   document.getElementById("year").textContent = new Date().getFullYear();
 </script>

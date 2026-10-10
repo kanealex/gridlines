@@ -1,7 +1,8 @@
 import {
-  BOARD, GA_SETTINGS, makePuzzle, mst, createGA, prune, polish, networkLength,
+  BOARD, DIFFICULTIES, makePuzzle, mst, createGA, prune, bestNetwork, networkLength,
   savedPercent, localDateKey, puzzleNumber,
 } from "./core.js";
+import { getLevel, starsFor, LEVEL_COUNT } from "./story.js";
 
 const $ = (id) => document.getElementById(id);
 const board = $("board");
@@ -18,54 +19,99 @@ const store = {
   },
 };
 
+// Daily ranks, by share of the best known saving.
+const RANKS = [
+  [0.995, "Optimal"],
+  [0.95, "Grid master"],
+  [0.85, "Chief engineer"],
+  [0.7, "Engineer"],
+  [0.5, "Lineworker"],
+  [0.25, "Apprentice"],
+  [-Infinity, "Trainee"],
+];
+
 const state = {
-  mode: "daily",
+  mode: "daily", // daily | story | versus
   puzzle: null,
   junctions: [],
   undo: [],
   phase: "play", // play | fighting | done
-  algo: null, // { junctions, length, history }
+  best: null, // { junctions, length } best known network (daily)
+  algo: null, // { junctions, length, history } the algorithm's result (versus)
   live: null, // the algorithm's current best while it runs
-  view: "algo",
+  level: null, // current story level
+  difficulty: store.get("fta:difficulty", "normal"),
+  view: "other",
   drag: null,
 };
 
 // Setup ----------------------------------------------------------------------
 
-function dailyKey() { return localDateKey(); }
+function reset(puzzle, junctions = []) {
+  state.puzzle = puzzle;
+  state.junctions = junctions;
+  state.undo = [];
+  state.phase = "play";
+  state.best = null;
+  state.algo = null;
+  state.live = null;
+  state.view = "other";
+}
 
 function loadDaily() {
   state.mode = "daily";
-  const key = dailyKey();
-  state.puzzle = makePuzzle(key);
+  const key = localDateKey();
   const saved = store.get("fta:daily:" + key, null);
-  state.junctions = saved?.junctions ?? [];
-  state.undo = [];
-  state.algo = null;
-  state.phase = "play";
+  reset(makePuzzle(key), saved?.junctions ?? []);
   if (saved?.done) {
-    state.algo = solveInstantly(state.puzzle);
+    state.best = bestFor(state.puzzle);
     state.phase = "done";
-    state.view = "algo";
-    recordDaily(); // no-op unless the page closed mid-fight
+    recordDaily();
   }
   render();
 }
 
-function loadPractice() {
-  state.mode = "practice";
-  const key = "practice:" + Math.random().toString(36).slice(2);
-  state.puzzle = makePuzzle(key);
-  state.junctions = [];
-  state.undo = [];
-  state.algo = null;
-  state.phase = "play";
+function loadStory(index) {
+  const progress = storyProgress();
+  if (index === undefined) index = Math.min(progress.current, LEVEL_COUNT - 1);
+  state.mode = "story";
+  state.level = getLevel(index);
+  progress.current = index;
+  store.set("fta:story", progress);
+  reset(state.level.puzzle, store.get(`fta:story:${index}`, []));
   render();
 }
 
-function saveDaily(done = false) {
-  if (state.mode !== "daily") return;
-  store.set("fta:daily:" + state.puzzle.key, { junctions: state.junctions, done });
+function loadVersus() {
+  state.mode = "versus";
+  reset(makePuzzle("versus:" + Math.random().toString(36).slice(2)));
+  render();
+}
+
+function load(mode) {
+  store.set("fta:mode", mode);
+  if (mode === "daily") loadDaily();
+  else if (mode === "story") loadStory();
+  else loadVersus();
+}
+
+function saveProgress() {
+  if (state.mode === "daily") {
+    store.set("fta:daily:" + state.puzzle.key, { junctions: state.junctions, done: state.phase !== "play" });
+  } else if (state.mode === "story") {
+    store.set(`fta:story:${state.level.index}`, state.junctions);
+    const stars = starsFor(state.level, yourLength());
+    const progress = storyProgress();
+    const i = state.level.index;
+    if (stars > (progress.stars[i] ?? 0)) {
+      progress.stars[i] = stars;
+      store.set("fta:story", progress);
+    }
+  }
+}
+
+function storyProgress() {
+  return store.get("fta:story", { current: 0, stars: {} });
 }
 
 // Scores ---------------------------------------------------------------------
@@ -75,21 +121,52 @@ function pct(length) { return savedPercent(state.puzzle.base, length); }
 const fmtPct = (p) => (Math.abs(p) < 0.005 ? "0.00" : p.toFixed(2)) + "%";
 const describe = (p) => (p < -0.005 ? `${fmtPct(-p)} longer` : `${fmtPct(p)} shorter`);
 const fmtLen = (l) => l.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " km";
+const starText = (n, of = 3) => "★".repeat(n) + `<span class="off">${"★".repeat(of - n)}</span>`;
 
-function bestKnown() {
-  const { puzzle, algo } = state;
-  const candidates = [puzzle.bestKnown, yourLength()];
-  if (algo) candidates.push(algo.length, networkLength(puzzle.towns, polish(puzzle.towns, algo.junctions)));
-  return Math.min(...candidates);
+// The best known network for the daily puzzle. If the player beat it, theirs is.
+function bestFor(puzzle) {
+  const best = bestNetwork(puzzle);
+  const yours = yourLength();
+  return yours < best.length ? { junctions: prune(puzzle.towns, state.junctions), length: yours } : best;
 }
 
-// Algorithm ------------------------------------------------------------------
-
-function solveInstantly(puzzle) {
-  const ga = createGA(puzzle);
-  while (ga.step());
-  return finish(puzzle, ga);
+// Share of the best known saving, 0..1.
+function shareOfBest() {
+  const saving = state.puzzle.base - yourLength();
+  const bestSaving = state.puzzle.base - state.best.length;
+  return bestSaving > 0 ? saving / bestSaving : 1;
 }
+const rankFor = (share) => RANKS.find(([min]) => share >= min)[1];
+
+// Daily ----------------------------------------------------------------------
+
+function submitDaily() {
+  if (state.phase !== "play") return;
+  state.best = bestFor(state.puzzle);
+  state.phase = "done";
+  state.view = "other";
+  saveProgress();
+  recordDaily();
+  render();
+}
+
+function recordDaily() {
+  const s = store.get("fta:dailyStats", { played: 0, totalShare: 0, streak: 0, best: 0, last: null, bestRank: null });
+  const key = state.puzzle.key;
+  if (s.last === key) return;
+  const share = Math.min(1, Math.max(0, shareOfBest()));
+  const yesterday = localDateKey(new Date(Date.now() - 86400000));
+  s.played++;
+  s.totalShare += share;
+  s.streak = s.last === yesterday ? s.streak + 1 : 1;
+  s.best = Math.max(s.best, s.streak);
+  const rankIndex = RANKS.findIndex(([min]) => share >= min);
+  if (s.bestRank === null || rankIndex < s.bestRank) s.bestRank = rankIndex;
+  s.last = key;
+  store.set("fta:dailyStats", s);
+}
+
+// vs Algorithm ---------------------------------------------------------------
 
 function finish(puzzle, ga) {
   const junctions = prune(puzzle.towns, ga.best.junctions);
@@ -99,25 +176,28 @@ function finish(puzzle, ga) {
 function fight() {
   if (state.phase !== "play") return;
   state.phase = "fighting";
-  state.view = "algo";
-  saveDaily(true); // locks in today's answer even if the page closes mid-fight
+  state.view = "other";
   const puzzle = state.puzzle;
-  const ga = createGA(puzzle);
+  const ga = createGA(puzzle, DIFFICULTIES[state.difficulty].settings);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const stepMs = reduced ? 0 : 2400 / ga.settings.generations;
+  const stepMs = reduced ? 0 : Math.min(48, 2400 / ga.settings.generations);
   let last = performance.now();
-  state.live = { junctions: ga.best.junctions, length: ga.best.length, history: ga.history, generation: 0 };
+  const snapshot = () => ({
+    junctions: ga.best.junctions, length: ga.best.length, history: ga.history,
+    generation: ga.generation, generations: ga.settings.generations,
+  });
+  state.live = snapshot();
 
   function tick(now) {
     if (state.puzzle !== puzzle) return; // switched puzzle mid-fight
     if (stepMs === 0) while (ga.step());
     else while (now - last >= stepMs && ga.step()) last += stepMs;
-    state.live = { junctions: ga.best.junctions, length: ga.best.length, history: ga.history, generation: ga.generation };
+    state.live = snapshot();
     if (ga.done) {
       state.algo = finish(puzzle, ga);
       state.live = null;
       state.phase = "done";
-      if (state.mode === "daily") recordDaily();
+      recordVersus();
       render();
       return;
     }
@@ -127,45 +207,71 @@ function fight() {
   requestAnimationFrame(tick);
 }
 
-// Stats ----------------------------------------------------------------------
-
-function recordDaily() {
-  const s = store.get("fta:stats", { played: 0, wins: 0, streak: 0, best: 0, last: null, lastWin: null });
-  const key = state.puzzle.key;
-  if (s.last === key) return;
-  const won = Math.round((state.algo.length - yourLength()) * 10) / 10 > 0;
-  const yesterday = localDateKey(new Date(Date.now() - 86400000));
-  s.played++;
-  if (won) {
-    s.wins++;
-    s.streak = s.lastWin === yesterday ? s.streak + 1 : 1;
-    s.best = Math.max(s.best, s.streak);
-    s.lastWin = key;
-  } else {
-    s.streak = 0;
-  }
-  s.last = key;
-  store.set("fta:stats", s);
+// Shortest network wins. Compare at 0.1 km so a win is always visible in the numbers.
+function versusGap() {
+  const theirs = state.phase === "fighting" ? state.live.length : state.algo.length;
+  return Math.round((theirs - yourLength()) * 10) / 10;
 }
+
+function recordVersus() {
+  const s = store.get("fta:versusStats", {});
+  const d = s[state.difficulty] ?? { played: 0, wins: 0 };
+  d.played++;
+  if (versusGap() > 0) d.wins++;
+  s[state.difficulty] = d;
+  store.set("fta:versusStats", s);
+}
+
+// Stats and levels -----------------------------------------------------------
 
 function showStats() {
-  const s = store.get("fta:stats", { played: 0, wins: 0, streak: 0, best: 0, lastWin: null });
-  const today = dailyKey();
+  const tiles = (items) => items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+  const d = store.get("fta:dailyStats", { played: 0, totalShare: 0, streak: 0, best: 0, last: null, bestRank: null });
   const yesterday = localDateKey(new Date(Date.now() - 86400000));
-  const streak = s.lastWin === today || s.lastWin === yesterday ? s.streak : 0;
-  const winRate = s.played ? Math.round((s.wins / s.played) * 100) : 0;
-  $("stats").innerHTML = [
-    [s.played, "Played"], [winRate + "%", "Win rate"], [streak, "Win streak"], [s.best, "Best streak"],
-  ].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+  const streak = d.last === localDateKey() || d.last === yesterday ? d.streak : 0;
+  $("dailyStats").innerHTML = tiles([
+    [d.played, "Played"],
+    [d.played ? Math.round((d.totalShare / d.played) * 100) + "%" : "–", "Avg of best"],
+    [streak, "Streak"],
+    [d.bestRank === null ? "–" : RANKS[d.bestRank][1].split(" ").pop(), "Top rank"],
+  ]);
+  const p = storyProgress();
+  const stars = Object.values(p.stars).reduce((a, b) => a + b, 0);
+  const cleared = Object.values(p.stars).filter((n) => n > 0).length;
+  $("storyStats").innerHTML = tiles([[`${cleared}/${LEVEL_COUNT}`, "Levels"], [`${stars}/${LEVEL_COUNT * 3}`, "Stars"]]);
+  const v = store.get("fta:versusStats", {});
+  $("versusStats").innerHTML = tiles(Object.entries(DIFFICULTIES).map(([k, { label }]) => {
+    const r = v[k] ?? { played: 0, wins: 0 };
+    return [`${r.wins}/${r.played}`, label + " wins"];
+  }));
   $("statsDialog").showModal();
 }
+
+function showLevels() {
+  const p = storyProgress();
+  const unlocked = (i) => i === 0 || (p.stars[i - 1] ?? 0) > 0;
+  $("levelGrid").innerHTML = Array.from({ length: LEVEL_COUNT }, (_, i) => {
+    const s = p.stars[i] ?? 0;
+    const current = state.mode === "story" && state.level.index === i ? "current" : "";
+    return `<button type="button" data-level="${i}" class="${current}"${unlocked(i) ? "" : " disabled"} aria-label="Level ${i + 1}, ${s} stars">${i + 1}<span class="stars">${starText(s)}</span></button>`;
+  }).join("");
+  $("levelsDialog").showModal();
+}
+
+$("levelGrid").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-level]");
+  if (!b || b.disabled) return;
+  $("levelsDialog").close();
+  store.set("fta:mode", "story");
+  loadStory(+b.dataset.level);
+});
 
 // Drawing --------------------------------------------------------------------
 
 let colors = {};
 function readColors() {
   const cs = getComputedStyle(document.documentElement);
-  for (const name of ["line", "ghost", "accent", "algo", "board", "faint", "border"]) {
+  for (const name of ["line", "ghost", "accent", "algo", "win", "board", "faint", "border"]) {
     colors[name] = cs.getPropertyValue("--" + name).trim();
   }
 }
@@ -224,6 +330,11 @@ function drawTowns(towns) {
   }
 }
 
+function otherNetwork() {
+  if (state.mode === "daily") return state.best;
+  return state.phase === "fighting" ? state.live : state.algo;
+}
+
 function drawBoard() {
   const rect = sizeCanvas(board, ctx);
   ctx.clearRect(0, 0, rect.width, rect.height);
@@ -232,13 +343,13 @@ function drawBoard() {
   if (phase === "play") {
     drawNetwork(towns, state.junctions, { color: colors.accent, width: 2.5, showJunctions: true });
   } else {
-    const algo = phase === "fighting" ? state.live : state.algo;
-    const showAlgo = phase === "fighting" || view === "algo";
-    if (showAlgo) {
+    const other = otherNetwork();
+    const otherColor = state.mode === "daily" ? colors.win : colors.algo;
+    if (phase === "fighting" || view === "other") {
       drawNetwork(towns, state.junctions, { color: colors.ghost, width: 2, ghost: true });
-      drawNetwork(towns, algo.junctions, { color: colors.algo, width: 2.5, showJunctions: true });
+      drawNetwork(towns, other.junctions, { color: otherColor, width: 2.5, showJunctions: true });
     } else {
-      drawNetwork(towns, algo.junctions, { color: colors.ghost, width: 2, ghost: true });
+      drawNetwork(towns, other.junctions, { color: colors.ghost, width: 2, ghost: true });
       drawNetwork(towns, state.junctions, { color: colors.accent, width: 2.5, showJunctions: true });
     }
   }
@@ -251,11 +362,11 @@ function drawChart() {
   const { width: w, height: h } = rect;
   c.clearRect(0, 0, w, h);
   const run = state.phase === "fighting" ? state.live : state.algo;
-  if (!run) return;
-  const total = GA_SETTINGS.generations;
+  if (state.mode !== "versus" || !run) return;
+  const total = DIFFICULTIES[state.difficulty].settings.generations;
   const series = run.history.map(pct);
   const you = pct(yourLength());
-  const top = Math.max(you, ...series, pct(state.algo?.length ?? Infinity), 0.5) * 1.15;
+  const top = Math.max(you, ...series, 0.5) * 1.15;
   const pad = 4;
   const X = (i) => pad + (i / total) * (w - pad * 2);
   const Y = (p) => h - pad - (Math.max(0, p) / top) * (h - pad * 2);
@@ -298,29 +409,48 @@ function render() {
   const { puzzle, phase, mode } = state;
   const you = yourLength();
 
-  $("modeDaily").setAttribute("aria-selected", mode === "daily");
-  $("modePractice").setAttribute("aria-selected", mode === "practice");
+  for (const b of document.querySelectorAll(".modes button")) b.setAttribute("aria-selected", b.dataset.mode === mode);
   $("subtitle").textContent = mode === "daily"
     ? `Daily #${puzzleNumber(puzzle.key)} · ${new Date(puzzle.key + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`
-    : `Practice · ${puzzle.towns.length} towns`;
+    : mode === "story"
+      ? `Story · Level ${state.level.index + 1} of ${LEVEL_COUNT}`
+      : `vs Algorithm · ${puzzle.towns.length} towns`;
 
   $("scoreValue").textContent = fmtPct(Math.abs(pct(you)));
-  $("scoreValue").style.color = pct(you) < -0.005 ? "var(--lose)" : state.junctions.length === 0 ? "var(--faint)" : "var(--accent)";
   $("scoreLabel").textContent = pct(you) < -0.005 ? "longer than the plain network" : "shorter than the plain network";
+  $("scoreValue").style.color = pct(you) < -0.005 ? "var(--lose)" : state.junctions.length === 0 ? "var(--faint)" : "var(--accent)";
   $("scoreSide").innerHTML = `${fmtLen(you)} of cable<br>plain: ${fmtLen(puzzle.base)}`;
+
+  renderStoryBar();
+  renderVersusBar();
 
   board.classList.toggle("locked", phase !== "play");
   $("playControls").hidden = phase !== "play";
   $("undoBtn").disabled = state.undo.length === 0;
   $("clearBtn").disabled = state.junctions.length === 0;
+  const primary = $("primaryBtn");
+  if (mode === "daily") {
+    primary.textContent = "Submit";
+    primary.disabled = state.junctions.length === 0;
+  } else if (mode === "story") {
+    const last = state.level.index === LEVEL_COUNT - 1;
+    primary.textContent = last ? "Final level" : "Next level →";
+    primary.disabled = last || starsFor(state.level, you) === 0;
+  } else {
+    primary.textContent = "Fight the algorithm";
+    primary.disabled = false;
+  }
 
   const useless = state.junctions.length - prune(puzzle.towns, state.junctions).length;
+  const otherName = mode === "daily" ? "best known" : "algorithm's";
   $("hint").textContent = phase === "fighting"
-    ? `Generation ${state.live.generation} of ${GA_SETTINGS.generations}. The algorithm is evolving…`
+    ? `Generation ${state.live.generation} of ${state.live.generations}. The algorithm is evolving…`
     : phase === "done"
-      ? (state.view === "you" ? "Showing your network. The algorithm's is in grey." : "Showing the algorithm's network. Yours is in grey.")
+      ? (state.view === "you"
+        ? `Showing your network. The ${otherName} network is in grey.`
+        : `Showing the ${otherName} network. Yours is in grey.`)
       : state.junctions.length === 0
-        ? "Tap to add a junction. Drag to move it. Tap it again to remove it."
+        ? (mode === "story" && state.level.tip) || "Tap to add a junction. Drag to move it. Tap it again to remove it."
         : useless > 0
           ? "Hollow junctions aren't helping: they need three or more lines."
           : "Drag junctions to fine-tune. Lines meeting at 120° is the sweet spot.";
@@ -330,45 +460,95 @@ function render() {
   drawChart();
 }
 
-function renderResult() {
-  const { phase, algo, mode } = state;
-  const box = $("result");
-  box.hidden = phase === "play";
-  if (phase === "play") return;
-  const you = pct(yourLength());
-  const title = $("resultTitle");
-  const yourLen = yourLength();
-  const theirLen = phase === "fighting" ? state.live.length : algo.length;
-  $("youLen").textContent = fmtLen(yourLen);
-  $("algoLen").textContent = fmtLen(theirLen);
-  $("youPct").textContent = describe(pct(yourLen));
-  $("algoPct").textContent = describe(pct(theirLen));
-  // Shortest network wins. Compare rounded to 0.1 km so a "win" is always visible in the numbers.
-  const gap = Math.round((theirLen - yourLen) * 10) / 10;
-  box.querySelector(".side.you").classList.toggle("lead", gap > 0);
-  box.querySelector(".side.algo").classList.toggle("lead", gap < 0);
-  if (phase === "fighting") {
-    title.textContent = "Fighting\u2026";
-    title.className = "";
-    $("bestKnown").textContent = "";
-  } else {
-    const by = fmtLen(Math.abs(gap));
-    if (gap > 0) { title.textContent = `You win by ${by}`; title.className = "win"; }
-    else if (gap === 0) { title.textContent = "A dead heat"; title.className = ""; }
-    else { title.textContent = `The algorithm wins by ${by}`; title.className = "lose"; }
-    const best = bestKnown();
-    $("bestKnown").textContent = yourLen <= best + 1e-9
-      ? `Shortest known network: ${fmtLen(best)}. That's yours.`
-      : `Shortest known network for this puzzle: ${fmtLen(best)}`;
+function renderStoryBar() {
+  const show = state.mode === "story";
+  $("storyBar").hidden = !show;
+  $("storyBanner").hidden = true;
+  if (!show) return;
+  const level = state.level;
+  const used = state.junctions.length;
+  $("levelName").textContent = `${level.index + 1}. ${level.name}`;
+  $("goalText").innerHTML = `Goal: save <b>${fmtPct(level.goalPercent)}</b> · junctions <b>${used}/${level.maxJunctions}</b>`;
+  const stars = starsFor(level, yourLength());
+  $("levelStars").innerHTML = starText(stars);
+  if (stars === 0) return;
+  const last = level.index === LEVEL_COUNT - 1;
+  const banner = $("storyBanner");
+  banner.hidden = false;
+  const message = last
+    ? "<b>Story complete.</b> That's every level. Go back for any stars you missed."
+    : stars < 3
+      ? `<b>Level complete.</b> Keep going for ${3 - stars} more star${stars === 2 ? "" : "s"}, or move on.`
+      : "<b>Perfect.</b> As good as the best known network.";
+  banner.innerHTML = `<span>${message}</span><span class="stars">${starText(stars)}</span>`;
+}
+
+function renderVersusBar() {
+  const show = state.mode === "versus";
+  $("versusBar").hidden = !show;
+  if (!show) return;
+  for (const b of $("difficulty").querySelectorAll("button")) {
+    b.setAttribute("aria-pressed", b.dataset.difficulty === state.difficulty);
+    b.disabled = state.phase === "fighting";
   }
+  $("newPuzzleBtn").disabled = state.phase === "fighting";
+}
+
+function renderResult() {
+  const { phase, mode } = state;
+  const box = $("result");
+  box.hidden = phase === "play" || mode === "story";
+  if (box.hidden) return;
+  const yourLen = yourLength();
+  const other = otherNetwork();
+  const title = $("resultTitle");
+  const otherSide = $("otherSide");
+  const youSide = box.querySelector(".side.you");
+  otherSide.classList.toggle("best", mode === "daily");
+  $("otherWho").textContent = mode === "daily" ? "Best known" : `Algorithm (${DIFFICULTIES[state.difficulty].label})`;
+  $("viewOther").textContent = mode === "daily" ? "Best known" : "Algorithm";
+  $("youLen").textContent = fmtLen(yourLen);
+  $("otherLen").textContent = fmtLen(other.length);
+  $("youPct").textContent = describe(pct(yourLen));
+  $("otherPct").textContent = describe(pct(other.length));
+  $("chart").hidden = mode !== "versus";
+  $("meter").hidden = mode !== "daily";
+  $("bestKnown").textContent = "";
+
+  if (mode === "daily") {
+    const share = shareOfBest();
+    title.textContent = rankFor(share);
+    title.className = share >= 0.7 ? "win" : "";
+    $("resultSub").textContent = share >= 0.995
+      ? "You matched the best known network."
+      : `You found ${Math.max(0, Math.round(share * 100))}% of the best known saving.`;
+    $("meterFill").style.width = Math.max(0, Math.min(100, share * 100)) + "%";
+    youSide.classList.remove("lead");
+    otherSide.classList.remove("lead");
+  } else {
+    const gap = versusGap();
+    youSide.classList.toggle("lead", gap > 0);
+    otherSide.classList.toggle("lead", gap < 0);
+    $("resultSub").textContent = "";
+    if (phase === "fighting") {
+      title.textContent = "Fighting…";
+      title.className = "";
+    } else {
+      const by = fmtLen(Math.abs(gap));
+      if (gap > 0) { title.textContent = `You win by ${by}`; title.className = "win"; }
+      else if (gap === 0) { title.textContent = "A dead heat"; title.className = ""; }
+      else { title.textContent = `The algorithm wins by ${by}`; title.className = "lose"; }
+    }
+  }
+
   const done = phase === "done";
   $("viewYou").disabled = !done;
-  $("viewAlgo").disabled = !done;
+  $("viewOther").disabled = !done;
   $("viewYou").setAttribute("aria-pressed", state.view === "you");
-  $("viewAlgo").setAttribute("aria-pressed", state.view === "algo");
+  $("viewOther").setAttribute("aria-pressed", state.view === "other");
   $("shareBtn").disabled = !done;
-  $("nextBtn").hidden = mode !== "practice";
-  $("nextBtn").disabled = !done;
+  $("againBtn").hidden = mode !== "versus";
+  $("againBtn").disabled = !done;
   updateCountdown();
 }
 
@@ -378,18 +558,27 @@ function updateCountdown() {
   const now = new Date();
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const mins = Math.max(1, Math.ceil((tomorrow - now) / 60000));
-  el.textContent = `Next puzzle in ${Math.floor(mins / 60)}h ${mins % 60}m. Try Practice in the meantime.`;
+  el.textContent = `Next puzzle in ${Math.floor(mins / 60)}h ${mins % 60}m. Try Story or vs Algorithm in the meantime.`;
 }
 
 function shareText() {
   const you = pct(yourLength());
-  const them = pct(state.algo.length);
-  const won = Math.round((state.algo.length - yourLength()) * 10) / 10 > 0;
-  const head = state.mode === "daily" ? `Fight the Algorithm #${puzzleNumber(state.puzzle.key)}` : "Fight the Algorithm (practice)";
+  if (state.mode === "daily") {
+    const share = Math.max(0, Math.min(1, shareOfBest()));
+    const filled = Math.round(share * 10);
+    return [
+      `Fight the Algorithm #${puzzleNumber(state.puzzle.key)}`,
+      `${rankFor(shareOfBest())}: ${Math.round(share * 100)}% of the best network`,
+      "\u{1F7E9}".repeat(filled) + "⬜".repeat(10 - filled),
+      `${fmtLen(yourLength())} (${describe(you)})`,
+      "https://fight.kanealex.com",
+    ].join("\n");
+  }
+  const won = versusGap() > 0;
   return [
-    head,
+    `Fight the Algorithm: vs ${DIFFICULTIES[state.difficulty].label}`,
     `\u{1F9D1} Me: ${fmtLen(yourLength())} (${describe(you)})`,
-    `\u{1F9EC} Algorithm: ${fmtLen(state.algo.length)} (${describe(them)})`,
+    `\u{1F9EC} Algorithm: ${fmtLen(state.algo.length)} (${describe(pct(state.algo.length))})`,
     won ? "\u{1F3C6} Beat the algorithm" : "\u{1F916} The algorithm won",
     "https://fight.kanealex.com",
   ].join("\n");
@@ -404,7 +593,7 @@ async function share() {
     await navigator.clipboard.writeText(text);
     toast("Copied to clipboard");
   } catch {
-    toast("Couldn't copy. Select and copy:\n" + text);
+    toast("Couldn't copy the result");
   }
 }
 
@@ -414,7 +603,7 @@ function toast(msg) {
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (el.hidden = true), 2200);
+  toastTimer = setTimeout(() => (el.hidden = true), 2400);
 }
 
 // Input ----------------------------------------------------------------------
@@ -443,12 +632,19 @@ board.addEventListener("pointerdown", (e) => {
     const d = Math.hypot(q[0] - p[0], q[1] - p[1]);
     if (d < bestD) { bestD = d; index = i; }
   });
-  pushUndo();
   let created = false;
   if (index < 0) {
+    const max = state.mode === "story" ? state.level.maxJunctions : Infinity;
+    if (state.junctions.length >= max) {
+      toast(`This level allows ${max} junction${max === 1 ? "" : "s"}. Move or remove one.`);
+      return;
+    }
+    pushUndo();
     state.junctions.push(p);
     index = state.junctions.length - 1;
     created = true;
+  } else {
+    pushUndo();
   }
   state.drag = { id: e.pointerId, index, created, x: e.clientX, y: e.clientY, moved: false };
   board.setPointerCapture(e.pointerId);
@@ -470,7 +666,7 @@ function endDrag(e) {
   state.drag = null;
   if (!d.moved && !d.created) state.junctions.splice(d.index, 1); // tap removes
   else if (!d.moved && d.created && e.type === "pointercancel") state.junctions.pop();
-  saveDaily();
+  saveProgress();
   render();
 }
 board.addEventListener("pointerup", endDrag);
@@ -480,23 +676,38 @@ board.addEventListener("contextmenu", (e) => e.preventDefault());
 $("undoBtn").onclick = () => {
   if (!state.undo.length) return;
   state.junctions = state.undo.pop();
-  saveDaily();
+  saveProgress();
   render();
 };
 $("clearBtn").onclick = () => {
   if (!state.junctions.length) return;
   pushUndo();
   state.junctions = [];
-  saveDaily();
+  saveProgress();
   render();
 };
-$("fightBtn").onclick = fight;
+$("primaryBtn").onclick = () => {
+  if (state.mode === "daily") submitDaily();
+  else if (state.mode === "story") { if (starsFor(state.level, yourLength()) > 0) loadStory(state.level.index + 1); }
+  else fight();
+};
 $("shareBtn").onclick = share;
-$("nextBtn").onclick = loadPractice;
+$("againBtn").onclick = loadVersus;
+$("newPuzzleBtn").onclick = loadVersus;
+$("levelsBtn").onclick = showLevels;
+$("difficulty").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-difficulty]");
+  if (!b || state.phase === "fighting") return;
+  state.difficulty = b.dataset.difficulty;
+  store.set("fta:difficulty", state.difficulty);
+  if (state.phase === "done") loadVersus(); // a new opponent gets a fresh puzzle
+  else render();
+});
 $("viewYou").onclick = () => { state.view = "you"; render(); };
-$("viewAlgo").onclick = () => { state.view = "algo"; render(); };
-$("modeDaily").onclick = () => { if (state.mode !== "daily") loadDaily(); };
-$("modePractice").onclick = () => { if (state.mode !== "practice") loadPractice(); };
+$("viewOther").onclick = () => { state.view = "other"; render(); };
+for (const b of document.querySelectorAll(".modes button")) {
+  b.onclick = () => { if (state.mode !== b.dataset.mode) load(b.dataset.mode); };
+}
 $("statsBtn").onclick = showStats;
 
 document.addEventListener("keydown", (e) => {
@@ -512,9 +723,10 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { re
 new ResizeObserver(() => state.puzzle && render()).observe(board);
 setInterval(() => {
   // Roll over to the new daily puzzle at midnight if the page is left open.
-  if (state.mode === "daily" && state.phase !== "fighting" && state.puzzle.key !== dailyKey()) loadDaily();
+  if (state.mode === "daily" && state.puzzle.key !== localDateKey()) loadDaily();
   else updateCountdown();
 }, 30000);
 
-loadDaily();
+const hashMode = location.hash.slice(1);
+load(["daily", "story", "versus"].includes(hashMode) ? hashMode : store.get("fta:mode", "daily"));
 store.set("fta:seenHelp", true); // the how-to-play page skips straight here from now on

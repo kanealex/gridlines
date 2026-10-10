@@ -54,20 +54,38 @@ export function puzzleNumber(dateKey) {
 // Re-roll (deterministically) until a decent saving is possible.
 export const MIN_POTENTIAL = 2.5; // percent
 
-export function makePuzzle(seedKey) {
+// `count` fixes the number of towns (default: 8 to 12, chosen by the seed).
+export function makePuzzle(seedKey, { count, minPotential = MIN_POTENTIAL } = {}) {
   let puzzle;
   for (let attempt = 0; attempt < 40; attempt++) {
-    puzzle = layout(seedKey, hashString(`fta:${seedKey}:${attempt}`));
+    puzzle = layout(seedKey, hashString(`fta:${seedKey}:${attempt}`), count);
     const known = greedySteiner(puzzle.towns);
     puzzle.bestKnown = networkLength(puzzle.towns, known);
-    if (savedPercent(puzzle.base, puzzle.bestKnown) >= MIN_POTENTIAL) break;
+    if (savedPercent(puzzle.base, puzzle.bestKnown) >= minPotential) break;
   }
   return puzzle;
 }
 
-function layout(seedKey, seed) {
+// A puzzle from a fixed set of towns (story mode's hand-made levels).
+export function puzzleFromTowns(key, towns) {
+  const known = greedySteiner(towns);
+  return { key, seed: hashString("fta:" + key), towns, base: mst(towns).length, bestKnown: networkLength(towns, known) };
+}
+
+// The best network we can find: the greedy heuristic, or a long, strong GA
+// run, whichever is shorter. Deterministic for a given puzzle.
+export function bestNetwork(puzzle) {
+  const greedy = greedySteiner(puzzle.towns);
+  const ga = polish(puzzle.towns, runGA(puzzle, DIFFICULTIES.hard.settings).junctions);
+  const g = networkLength(puzzle.towns, greedy);
+  const h = networkLength(puzzle.towns, ga);
+  return g <= h ? { junctions: greedy, length: g } : { junctions: ga, length: h };
+}
+
+function layout(seedKey, seed, fixedCount) {
   const rand = rng(seed);
-  const count = 8 + Math.floor(rand() * 5); // 8 to 12 towns
+  const randomCount = 8 + Math.floor(rand() * 5); // 8 to 12 towns
+  const count = fixedCount ?? randomCount;
   const margin = 70;
   const minGap = 120;
   const towns = [];
@@ -210,6 +228,12 @@ export const GA_SETTINGS = {
   moveRate: 0.8,
   moveStart: 60, // how far a junction can jump early on, in board units
   moveEnd: 10, // ...and late on
+};
+
+export const DIFFICULTIES = {
+  easy: { label: "Easy", settings: { ...GA_SETTINGS, population: 8, generations: 25, moveEnd: 20 } },
+  normal: { label: "Normal", settings: GA_SETTINGS },
+  hard: { label: "Hard", settings: { ...GA_SETTINGS, population: 40, generations: 160, moveEnd: 4 } },
 };
 
 export function createGA(puzzle, settings = GA_SETTINGS) {

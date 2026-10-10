@@ -35,9 +35,30 @@
   </header>
 
   <nav class="modes" role="tablist" aria-label="Mode">
-    <button role="tab" id="modeDaily" aria-selected="true">Daily</button>
-    <button role="tab" id="modePractice" aria-selected="false">Practice</button>
+    <button role="tab" id="modeDaily" data-mode="daily" aria-selected="true">Daily</button>
+    <button role="tab" id="modeStory" data-mode="story" aria-selected="false">Story</button>
+    <button role="tab" id="modeVersus" data-mode="versus" aria-selected="false">vs Algorithm</button>
   </nav>
+
+  <section class="mode-bar" id="storyBar" hidden>
+    <div class="mode-bar-main">
+      <span class="level-name" id="levelName"></span>
+      <span class="goal" id="goalText"></span>
+    </div>
+    <div class="mode-bar-side">
+      <span class="stars" id="levelStars" aria-label="Stars"></span>
+      <button class="btn small" id="levelsBtn">Levels</button>
+    </div>
+  </section>
+
+  <section class="mode-bar" id="versusBar" hidden>
+    <div class="segmented" role="group" aria-label="Algorithm difficulty" id="difficulty">
+      <button data-difficulty="easy">Easy</button>
+      <button data-difficulty="normal">Normal</button>
+      <button data-difficulty="hard">Hard</button>
+    </div>
+    <button class="btn small" id="newPuzzleBtn">New puzzle</button>
+  </section>
 
   <section class="score" aria-live="polite">
     <div class="score-main">
@@ -53,27 +74,31 @@
 
   <p class="hint" id="hint">Tap to add a junction. Drag to move it. Tap it again to remove it.</p>
 
+  <div class="banner" id="storyBanner" hidden></div>
+
   <div class="controls" id="playControls">
     <button class="btn" id="undoBtn">Undo</button>
     <button class="btn" id="clearBtn">Clear</button>
-    <button class="btn primary" id="fightBtn">Fight the algorithm</button>
+    <button class="btn primary" id="primaryBtn">Submit</button>
   </div>
 
   <section class="result" id="result" hidden>
     <h2 id="resultTitle"></h2>
+    <p class="result-sub" id="resultSub"></p>
+    <div class="meter" id="meter" hidden><div class="meter-fill" id="meterFill"></div></div>
     <div class="versus">
       <div class="side you"><span class="who">Your cable</span><span class="pct" id="youLen"></span><span class="sub-pct" id="youPct"></span></div>
-      <div class="side algo"><span class="who">Algorithm's cable</span><span class="pct" id="algoLen"></span><span class="sub-pct" id="algoPct"></span></div>
+      <div class="side other" id="otherSide"><span class="who" id="otherWho"></span><span class="pct" id="otherLen"></span><span class="sub-pct" id="otherPct"></span></div>
     </div>
     <canvas id="chart" height="90" aria-hidden="true"></canvas>
     <p class="best" id="bestKnown"></p>
     <div class="views" role="group" aria-label="Show network">
       <button id="viewYou" aria-pressed="false">Yours</button>
-      <button id="viewAlgo" aria-pressed="true">Algorithm</button>
+      <button id="viewOther" aria-pressed="true"></button>
     </div>
     <div class="controls">
       <button class="btn primary" id="shareBtn">Share result</button>
-      <button class="btn" id="nextBtn" hidden>New puzzle</button>
+      <button class="btn" id="againBtn" hidden>New puzzle</button>
     </div>
     <p class="next-daily" id="nextDaily"></p>
   </section>
@@ -87,12 +112,25 @@
 <dialog id="statsDialog">
   <form method="dialog">
     <h2>Statistics</h2>
-    <div class="stats" id="stats"></div>
-    <p class="muted small">Daily puzzles only. Saved on this device.</p>
+    <h3>Daily</h3>
+    <div class="stats" id="dailyStats"></div>
+    <h3>Story</h3>
+    <div class="stats" id="storyStats"></div>
+    <h3>vs Algorithm</h3>
+    <div class="stats" id="versusStats"></div>
+    <p class="muted small">Saved on this device.</p>
     <button class="btn primary" value="close">Close</button>
   </form>
 </dialog>
 
+<dialog id="levelsDialog">
+  <form method="dialog">
+    <h2>Story levels</h2>
+    <p>Meet each level's goal to unlock the next. Get closer to the best known network for more stars.</p>
+    <div class="levels" id="levelGrid"></div>
+    <button class="btn" value="close">Close</button>
+  </form>
+</dialog>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script type="module" src="js/app.js"></script>
