@@ -216,3 +216,18 @@ dialog .btn { width: 100%; margin-top: 8px; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Streak + Leaderboard + Stats/History row, laid out like Semantic Drift's. */
+.info-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 14px; }
+.info-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+.streak { font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.toggle-btn {
+  border: 1px solid var(--border); background: var(--card); color: var(--fg); border-radius: 8px;
+  padding: 6px 10px; font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.toggle-btn:hover { border-color: var(--border-strong); }
+@media (max-width: 400px) {
+  .info-actions { gap: 6px; }
+  .streak { font-size: .78rem; }
+  .toggle-btn { padding: 5px 8px; font-size: .76rem; }
+}

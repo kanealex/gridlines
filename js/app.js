@@ -223,6 +223,7 @@ function recordDaily() {
   s.history = { ...(s.history ?? {}), [key]: { share, length: yourLength() } };
   s.last = key;
   store.set("fta:dailyStats", s);
+  renderStreak();
 }
 
 // vs Algorithm ---------------------------------------------------------------
@@ -282,6 +283,16 @@ function recordVersus() {
 }
 
 // Stats and levels -----------------------------------------------------------
+
+// "3 day streak (best 5)" next to the Leaderboard and Stats/History buttons.
+function renderStreak() {
+  const d = store.get("fta:dailyStats", null);
+  const el = $("streakBadge");
+  if (!d?.played) { el.textContent = ""; return; }
+  const yesterday = localDateKey(new Date(Date.now() - 86400000));
+  const streak = d.last === localDateKey() || d.last === yesterday ? d.streak : 0;
+  el.textContent = `${streak} day streak (best ${d.best})`;
+}
 
 function showStats() {
   const tiles = (items) => items.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
@@ -893,4 +904,5 @@ setInterval(() => {
 
 const hashMode = location.hash.slice(1);
 load(["daily", "story", "versus"].includes(hashMode) ? hashMode : store.get("fta:mode", "daily"));
+renderStreak();
 store.set("fta:seenHelp", true); // the how-to-play page skips straight here from now on
