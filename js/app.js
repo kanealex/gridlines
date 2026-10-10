@@ -83,7 +83,6 @@ const state = {
   algo: null, // { junctions, length, history } the algorithm's result (versus)
   live: null, // the algorithm's current best while it runs
   level: null, // current story level
-  storyResult: null, // { stars, saved } after pressing Submit in story mode
   dailyRank: null, // { position, total } from the scores server
   difficulty: store.get("fta:difficulty", "normal"),
   view: "other",
@@ -101,7 +100,6 @@ function reset(puzzle, junctions = []) {
   state.algo = null;
   state.live = null;
   state.view = "other";
-  state.storyResult = null;
   state.dailyRank = null;
 }
 
@@ -149,14 +147,7 @@ function saveProgress() {
     store.set("fta:daily:" + state.puzzle.key, { junctions: state.junctions, done: state.phase !== "play" });
   } else if (state.mode === "story") {
     store.set(`fta:story:${state.level.index}`, state.junctions);
-  }
-}
-
-// Story levels are only checked when you press Submit.
-function submitStory() {
-  const stars = starsFor(state.level, yourLength());
-  state.storyResult = { stars, saved: pct(yourLength()) };
-  if (stars > 0) {
+    const stars = starsFor(state.level, yourLength());
     const progress = storyProgress();
     const i = state.level.index;
     if (stars > (progress.stars[i] ?? 0)) {
@@ -164,7 +155,6 @@ function submitStory() {
       store.set("fta:story", progress);
     }
   }
-  render();
 }
 
 function storyProgress() {
@@ -588,10 +578,9 @@ function render() {
     primary.textContent = "Submit";
     primary.disabled = state.junctions.length === 0;
   } else if (mode === "story") {
-    const passed = state.storyResult?.stars > 0;
     const last = state.level.index === LEVEL_COUNT - 1;
-    primary.textContent = passed ? (last ? "Story complete" : "Next level →") : "Submit";
-    primary.disabled = passed ? last : state.junctions.length === 0;
+    primary.textContent = last ? "Final level" : "Next level →";
+    primary.disabled = last || starsFor(state.level, you) === 0;
   } else {
     primary.textContent = "Fight the algorithm";
     primary.disabled = false;
@@ -625,22 +614,16 @@ function renderStoryBar() {
   const used = state.junctions.length;
   $("levelName").textContent = `${level.index + 1}. ${level.name}`;
   $("goalText").innerHTML = `Goal: save <b>${fmtPct(level.goalPercent)}</b> · junctions <b>${used}/${level.maxJunctions}</b>`;
-  $("levelStars").innerHTML = starText(storyProgress().stars[level.index] ?? 0);
-  const result = state.storyResult;
-  if (!result) return;
+  const stars = starsFor(level, yourLength());
+  $("levelStars").innerHTML = starText(stars);
+  if (stars === 0) return;
+  const last = level.index === LEVEL_COUNT - 1;
   const banner = $("storyBanner");
   banner.hidden = false;
-  banner.classList.toggle("fail", result.stars === 0);
-  if (result.stars === 0) {
-    banner.innerHTML = `<span><b>Not yet.</b> Your network is ${describe(result.saved)} and the goal is ${fmtPct(level.goalPercent)} shorter. Adjust your junctions and submit again.</span>`;
-    return;
-  }
-  const stars = result.stars;
-  const last = level.index === LEVEL_COUNT - 1;
   const message = last
     ? "<b>Story complete.</b> That's every level. Go back for any stars you missed."
     : stars < 3
-      ? `<b>Level complete.</b> Improve your network and submit again for ${3 - stars} more star${stars === 2 ? "" : "s"}, or move on.`
+      ? `<b>Level complete.</b> Keep going for ${3 - stars} more star${stars === 2 ? "" : "s"}, or move on.`
       : "<b>Perfect.</b> As good as the best known network.";
   banner.innerHTML = `<span>${message}</span><span class="stars">${starText(stars)}</span>`;
 }
@@ -798,7 +781,6 @@ board.addEventListener("pointerdown", (e) => {
     const d = Math.hypot(q[0] - p[0], q[1] - p[1]);
     if (d < bestD) { bestD = d; index = i; }
   });
-  state.storyResult = null;
   let created = false;
   if (index < 0) {
     const max = state.mode === "story" ? state.level.maxJunctions : Infinity;
@@ -843,7 +825,6 @@ board.addEventListener("contextmenu", (e) => e.preventDefault());
 $("undoBtn").onclick = () => {
   if (!state.undo.length) return;
   state.junctions = state.undo.pop();
-  state.storyResult = null;
   saveProgress();
   render();
 };
@@ -851,16 +832,12 @@ $("clearBtn").onclick = () => {
   if (!state.junctions.length) return;
   pushUndo();
   state.junctions = [];
-  state.storyResult = null;
   saveProgress();
   render();
 };
 $("primaryBtn").onclick = () => {
   if (state.mode === "daily") submitDaily();
-  else if (state.mode === "story") {
-    if (state.storyResult?.stars > 0) loadStory(state.level.index + 1);
-    else submitStory();
-  }
+  else if (state.mode === "story") { if (starsFor(state.level, yourLength()) > 0) loadStory(state.level.index + 1); }
   else fight();
 };
 $("shareBtn").onclick = share;
