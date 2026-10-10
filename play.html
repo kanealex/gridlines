@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Steiner Point</title>
+<title>Gridlines</title>
 <meta name="description" content="A daily puzzle: connect the towns with as little cable as you can, then see if you beat a genetic algorithm.">
-<link rel="canonical" href="https://steiner.kanealex.com/play.html">
+<link rel="canonical" href="https://gridlines.kanealex.com/play.html">
 <meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://steiner.kanealex.com/">
-<meta property="og:title" content="Steiner Point">
+<meta property="og:url" content="https://gridlines.kanealex.com/">
+<meta property="og:title" content="Gridlines">
 <meta property="og:description" content="Connect the towns with less cable than a genetic algorithm. A new puzzle every day.">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Steiner Point">
+<meta name="twitter:title" content="Gridlines">
 <meta name="twitter:description" content="Connect the towns with less cable than a genetic algorithm. A new puzzle every day.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f5bd3'/%3E%3Cg stroke='%23fff' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M32 34L16 18M32 34L48 18M32 34V50'/%3E%3C/g%3E%3Ccircle cx='32' cy='34' r='5' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -23,11 +23,14 @@
   <header class="top">
     <div>
       <a class="home" href="https://kanealex.com">kanealex.com</a>
-      <h1>Steiner Point</h1>
+      <h1>Gridlines</h1>
       <a href="index.html" id="howToPlayLink">&larr; How to Play</a>
       <p class="sub" id="subtitle">&nbsp;</p>
     </div>
     <div class="top-actions">
+      <button class="icon-btn" id="leaderboardBtn" aria-label="Leaderboard" title="Leaderboard">
+        <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg>
+      </button>
       <button class="icon-btn" id="statsBtn" aria-label="Statistics" title="Statistics">
         <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>
       </button>
@@ -85,6 +88,7 @@
   <section class="result" id="result" hidden>
     <h2 id="resultTitle"></h2>
     <p class="result-sub" id="resultSub"></p>
+    <p class="rank-note" id="dailyRankNote" hidden></p>
     <div class="meter" id="meter" hidden><div class="meter-fill" id="meterFill"></div></div>
     <div class="versus">
       <div class="side you"><span class="who">Your cable</span><span class="pct" id="youLen"></span><span class="sub-pct" id="youPct"></span></div>
@@ -111,15 +115,32 @@
 
 <dialog id="statsDialog">
   <form method="dialog">
-    <h2>Statistics</h2>
-    <h3>Daily</h3>
+    <div class="dialog-head"><h2>Stats</h2><button class="close" value="close" aria-label="Close">&#x2715;</button></div>
+    <p class="section-label">Daily</p>
     <div class="stats" id="dailyStats"></div>
-    <h3>Story</h3>
+    <p class="section-label">Rank distribution</p>
+    <div class="dist" id="rankDist"></div>
+    <p class="section-label">Last 5 weeks</p>
+    <div class="calendar" id="calendar"></div>
+    <div class="cal-legend" id="calLegend"></div>
+    <p class="section-label">Story</p>
     <div class="stats" id="storyStats"></div>
-    <h3>vs Algorithm</h3>
+    <p class="section-label">vs Algorithm</p>
     <div class="stats" id="versusStats"></div>
     <p class="muted small">Saved on this device.</p>
-    <button class="btn primary" value="close">Close</button>
+  </form>
+</dialog>
+
+<dialog id="leaderboardDialog">
+  <form method="dialog" id="leaderboardForm">
+    <div class="dialog-head"><h2>Leaderboard</h2><button class="close" value="close" aria-label="Close">&#x2715;</button></div>
+    <p>Based on your Daily results from the past 7 days. Each day is worth up to 100 points: the share of the best known saving your network found.</p>
+    <div class="name-row">
+      <input id="nicknameInput" type="text" maxlength="20" placeholder="Your name on the board (optional)" autocomplete="nickname">
+      <button type="button" class="btn small" id="nicknameSaveBtn">Save</button>
+    </div>
+    <p class="name-error" id="nicknameError" hidden></p>
+    <div class="board-list" id="leaderboardList"></div>
   </form>
 </dialog>
 

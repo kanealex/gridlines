@@ -1,7 +1,8 @@
 name: Deploy
 
-# Runs on every push to main: pulls the latest main into /var/www/steiner-point
-# on the Vultr server, which Caddy serves at steiner.kanealex.com. Uses the same
+# Runs on every push to main: pulls the latest main into /var/www/gridlines
+# on the Vultr server and restarts the gridlines service (server/server.py),
+# which Caddy proxies at gridlines.kanealex.com. Uses the same
 # deploy-only SSH key as the homepage, OBD Dash and Semantic Drift (DEPLOY_SSH_KEY secret).
 
 on:
@@ -20,5 +21,6 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            git -C /var/www/steiner-point pull --ff-only
-            git -C /var/www/steiner-point log -1 --oneline
+            git -C /var/www/gridlines pull --ff-only
+            git -C /var/www/gridlines log -1 --oneline
+            sudo -n systemctl restart gridlines

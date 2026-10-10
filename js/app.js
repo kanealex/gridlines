@@ -19,16 +19,59 @@ const store = {
   },
 };
 
-// Daily ranks, by share of the best known saving.
+// Daily ranks, by share of the best known saving, with the colour each one
+// gets in the stats distribution and calendar.
 const RANKS = [
-  [0.995, "Optimal"],
-  [0.95, "Grid master"],
-  [0.85, "Chief engineer"],
-  [0.7, "Engineer"],
-  [0.5, "Lineworker"],
-  [0.25, "Apprentice"],
-  [-Infinity, "Trainee"],
+  [0.995, "Optimal", "var(--star)"],
+  [0.95, "Grid master", "var(--win)"],
+  [0.85, "Chief engineer", "var(--win)"],
+  [0.7, "Engineer", "var(--accent)"],
+  [0.5, "Lineworker", "var(--accent)"],
+  [0.25, "Apprentice", "var(--algo)"],
+  [-Infinity, "Trainee", "var(--lose)"],
 ];
+const rankIndexFor = (share) => RANKS.findIndex(([min]) => share >= min);
+
+// Scores API (server/server.py) ------------------------------------------------
+// Optional: when the page is served without it (e.g. as plain files), every
+// call fails quietly and the game works exactly as before, minus the board.
+
+function playerToken() {
+  let token = store.get("fta:token", null);
+  if (!/^[0-9a-f]{32}$/.test(token ?? "")) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    store.set("fta:token", token);
+  }
+  return token;
+}
+
+async function api(path, body) {
+  const res = await fetch(path, body
+    ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+    : { cache: "no-store" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `request failed (${res.status})`);
+  return data;
+}
+
+// Today's position among everyone who has played this puzzle.
+async function submitDailyResult() {
+  const key = state.puzzle.key;
+  const saved = store.get("fta:dailyRank:" + key, null);
+  try {
+    const data = saved?.sent
+      ? await api(`/api/daily-rank?date=${key}&length=${yourLength().toFixed(2)}`)
+      : await api("/api/daily-result", {
+        date: key, token: playerToken(), length: yourLength(), base: state.puzzle.base,
+        best: state.best.length, junctions: prune(state.puzzle.towns, state.junctions).length,
+      });
+    if (state.mode !== "daily" || state.puzzle.key !== key) return;
+    state.dailyRank = { position: data.position, total: data.totalPlayers };
+    store.set("fta:dailyRank:" + key, { sent: true, ...state.dailyRank });
+    renderResult();
+  } catch { /* no scores server here: no rank line */ }
+}
 
 const state = {
   mode: "daily", // daily | story | versus
@@ -41,6 +84,7 @@ const state = {
   live: null, // the algorithm's current best while it runs
   level: null, // current story level
   storyResult: null, // { stars, saved } after pressing Submit in story mode
+  dailyRank: null, // { position, total } from the scores server
   difficulty: store.get("fta:difficulty", "normal"),
   view: "other",
   drag: null,
@@ -58,6 +102,7 @@ function reset(puzzle, junctions = []) {
   state.live = null;
   state.view = "other";
   state.storyResult = null;
+  state.dailyRank = null;
 }
 
 function loadDaily() {
@@ -69,6 +114,8 @@ function loadDaily() {
     state.best = bestFor(state.puzzle);
     state.phase = "done";
     recordDaily();
+    state.dailyRank = store.get("fta:dailyRank:" + key, null);
+    submitDailyResult();
   }
   render();
 }
@@ -158,6 +205,7 @@ function submitDaily() {
   saveProgress();
   recordDaily();
   render();
+  submitDailyResult();
 }
 
 function recordDaily() {
@@ -170,8 +218,9 @@ function recordDaily() {
   s.totalShare += share;
   s.streak = s.last === yesterday ? s.streak + 1 : 1;
   s.best = Math.max(s.best, s.streak);
-  const rankIndex = RANKS.findIndex(([min]) => share >= min);
+  const rankIndex = rankIndexFor(share);
   if (s.bestRank === null || rankIndex < s.bestRank) s.bestRank = rankIndex;
+  s.history = { ...(s.history ?? {}), [key]: { share, length: yourLength() } };
   s.last = key;
   store.set("fta:dailyStats", s);
 }
@@ -243,8 +292,29 @@ function showStats() {
     [d.played, "Played"],
     [d.played ? Math.round((d.totalShare / d.played) * 100) + "%" : "–", "Avg of best"],
     [streak, "Streak"],
-    [d.bestRank === null ? "–" : RANKS[d.bestRank][1].split(" ").pop(), "Top rank"],
+    [d.best, "Best streak"],
   ]);
+  // Rank distribution, best rank first.
+  const history = Object.entries(d.history ?? {});
+  const counts = RANKS.map(() => 0);
+  for (const [, h] of history) counts[rankIndexFor(h.share)]++;
+  const most = Math.max(1, ...counts);
+  $("rankDist").innerHTML = RANKS.map(([, name, color], i) =>
+    `<div class="dist-bar"><span class="dist-label">${name}</span>` +
+    `<div class="dist-fill${counts[i] ? "" : " zero"}" style="width:${Math.max(8, Math.round((counts[i] / most) * 100))}%;background:${color}">${counts[i]}</div></div>`).join("");
+  // Last 35 days, oldest first, coloured by that day's rank.
+  const byDate = Object.fromEntries(history);
+  const today = new Date();
+  const cells = [];
+  for (let i = 34; i >= 0; i--) {
+    const key = localDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - i));
+    const h = byDate[key];
+    const label = h ? `${key}: ${RANKS[rankIndexFor(h.share)][1]}, ${Math.round(h.share * 100)}% of best` : `${key}: not played`;
+    cells.push(`<span class="${i === 0 ? "today" : ""}" title="${label}"${h ? ` style="background:${RANKS[rankIndexFor(h.share)][2]};border-color:transparent"` : ""}></span>`);
+  }
+  $("calendar").innerHTML = cells.join("");
+  $("calLegend").innerHTML = [["var(--star)", "Optimal"], ["var(--win)", "85%+"], ["var(--accent)", "50%+"], ["var(--algo)", "25%+"], ["var(--lose)", "under 25%"]]
+    .map(([c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join("");
   const p = storyProgress();
   const stars = Object.values(p.stars).reduce((a, b) => a + b, 0);
   const cleared = Object.values(p.stars).filter((n) => n > 0).length;
@@ -255,6 +325,68 @@ function showStats() {
     return [`${r.wins}/${r.played}`, label + " wins"];
   }));
   $("statsDialog").showModal();
+}
+
+// Leaderboard ----------------------------------------------------------------
+
+const NICKNAME_RE = /^[A-Za-z0-9 _-]{1,20}$/;
+const escapeHtml = (str) => str.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
+function leaderboardRow(e, isMe) {
+  const name = (e.nickname ? escapeHtml(e.nickname) : `Player ${e.token.slice(0, 6)}`) + (isMe ? " (You)" : "");
+  const days = `${e.daysPlayed} day${e.daysPlayed === 1 ? "" : "s"}`;
+  return `<div class="lb-row${isMe ? " me" : ""}"><span class="who-name"><span class="pos">#${e.rank}</span>${name}</span>` +
+    `<span class="pts">${e.totalPoints} <span>(${days})</span></span></div>`;
+}
+
+async function renderLeaderboard() {
+  const list = $("leaderboardList");
+  list.innerHTML = `<p class="muted small">Loading\u2026</p>`;
+  const me = playerToken();
+  let data;
+  try {
+    data = await api(`/api/leaderboard?token=${me}`);
+  } catch {
+    list.innerHTML = `<p class="muted small">The leaderboard isn't available here. It works on the live site, or when the game runs with play.bat.</p>`;
+    return;
+  }
+  const entries = data.entries ?? [];
+  if (!entries.length) {
+    list.innerHTML = `<p class="muted small">Nobody's on the board this week yet. Submit a Daily puzzle to be first.</p>`;
+    return;
+  }
+  let html = entries.map((e) => leaderboardRow(e, e.token === me)).join("");
+  if (data.you && !entries.some((e) => e.token === me)) html += `<div class="lb-divider"></div>` + leaderboardRow(data.you, true);
+  list.innerHTML = html;
+}
+
+async function saveNickname() {
+  const name = $("nicknameInput").value.trim();
+  const error = $("nicknameError");
+  error.hidden = true;
+  if (!NICKNAME_RE.test(name)) {
+    error.textContent = "Names can use 1 to 20 letters, numbers, spaces, - or _.";
+    error.hidden = false;
+    return;
+  }
+  $("nicknameSaveBtn").disabled = true;
+  try {
+    await api("/api/nickname", { token: playerToken(), nickname: name });
+    store.set("fta:nickname", name);
+    renderLeaderboard();
+  } catch (err) {
+    error.textContent = `Couldn't save that: ${err.message}`;
+    error.hidden = false;
+  } finally {
+    $("nicknameSaveBtn").disabled = false;
+  }
+}
+
+function showLeaderboard() {
+  $("nicknameInput").value = store.get("fta:nickname", "");
+  $("nicknameError").hidden = true;
+  $("leaderboardDialog").showModal();
+  renderLeaderboard();
 }
 
 function showLevels() {
@@ -540,6 +672,9 @@ function renderResult() {
       ? "You matched the best known network."
       : `You found ${Math.max(0, Math.round(share * 100))}% of the best known saving.`;
     $("meterFill").style.width = Math.max(0, Math.min(100, share * 100)) + "%";
+    const r = state.dailyRank;
+    $("dailyRankNote").hidden = !r;
+    if (r) $("dailyRankNote").innerHTML = `You ranked <b>#${r.position}</b> of ${r.total} player${r.total === 1 ? "" : "s"} today.`;
     youSide.classList.remove("lead");
     otherSide.classList.remove("lead");
   } else {
@@ -547,6 +682,7 @@ function renderResult() {
     youSide.classList.toggle("lead", gap > 0);
     otherSide.classList.toggle("lead", gap < 0);
     $("resultSub").textContent = "";
+    $("dailyRankNote").hidden = true;
     if (phase === "fighting") {
       title.textContent = "Fighting…";
       title.className = "";
@@ -584,20 +720,20 @@ function shareText() {
     const share = Math.max(0, Math.min(1, shareOfBest()));
     const filled = Math.round(share * 10);
     return [
-      `Steiner Point #${puzzleNumber(state.puzzle.key)}`,
+      `Gridlines #${puzzleNumber(state.puzzle.key)}`,
       `${rankFor(shareOfBest())}: ${Math.round(share * 100)}% of the best network`,
       "\u{1F7E9}".repeat(filled) + "⬜".repeat(10 - filled),
-      `${fmtLen(yourLength())} (${describe(you)})`,
-      "https://steiner.kanealex.com",
+      `${fmtLen(yourLength())} (${describe(you)})` + (state.dailyRank ? ` \u00b7 #${state.dailyRank.position} of ${state.dailyRank.total} today` : ""),
+      "https://gridlines.kanealex.com",
     ].join("\n");
   }
   const won = versusGap() > 0;
   return [
-    `Steiner Point: vs ${DIFFICULTIES[state.difficulty].label}`,
+    `Gridlines: vs ${DIFFICULTIES[state.difficulty].label}`,
     `\u{1F9D1} Me: ${fmtLen(yourLength())} (${describe(you)})`,
     `\u{1F9EC} Algorithm: ${fmtLen(state.algo.length)} (${describe(pct(state.algo.length))})`,
     won ? "\u{1F3C6} Beat the algorithm" : "\u{1F916} The algorithm won",
-    "https://steiner.kanealex.com",
+    "https://gridlines.kanealex.com",
   ].join("\n");
 }
 
@@ -732,6 +868,9 @@ for (const b of document.querySelectorAll(".modes button")) {
   b.onclick = () => { if (state.mode !== b.dataset.mode) load(b.dataset.mode); };
 }
 $("statsBtn").onclick = showStats;
+$("leaderboardBtn").onclick = showLeaderboard;
+$("nicknameSaveBtn").onclick = saveNickname;
+$("nicknameInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveNickname(); } });
 
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "z" && state.phase === "play") { e.preventDefault(); $("undoBtn").click(); }
@@ -748,6 +887,8 @@ setInterval(() => {
   // Roll over to the new daily puzzle at midnight if the page is left open.
   if (state.mode === "daily" && state.puzzle.key !== localDateKey()) loadDaily();
   else updateCountdown();
+  // Keep today's position fresh as other people finish.
+  if (state.mode === "daily" && state.phase === "done") submitDailyResult();
 }, 30000);
 
 const hashMode = location.hash.slice(1);
