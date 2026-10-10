@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+  // Returning players skip this page and go straight to the game, unless they
+  // got here from the game's own "How to play" button (same-origin referrer).
+  try {
+    const fromThisSite = document.referrer && new URL(document.referrer).origin === location.origin;
+    if (!fromThisSite && localStorage.getItem("fta:seenHelp")) location.replace("play.html");
+  } catch (err) { /* storage blocked or odd referrer: show this page */ }
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fight the Algorithm</title>
+<title>Fight the Algorithm: How to Play</title>
 <meta name="description" content="A daily puzzle: connect the towns with as little cable as you can, then see if you beat a genetic algorithm.">
 <link rel="canonical" href="https://fight.kanealex.com/">
 <meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
@@ -17,6 +25,50 @@
 <meta name="twitter:description" content="Connect the towns with less cable than a genetic algorithm. A new puzzle every day.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f5bd3'/%3E%3Cg stroke='%23fff' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M32 34L16 18M32 34L48 18M32 34V50'/%3E%3C/g%3E%3Ccircle cx='32' cy='34' r='5' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
+<style>
+  .intro { color: var(--muted); font-size: 1.02rem; margin: 6px 0 22px; text-wrap: pretty; }
+  .intro b { color: var(--fg); }
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step {
+    padding: 18px; border-radius: 16px;
+    background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .step h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 1.12rem; letter-spacing: -0.01em; text-wrap: balance; }
+  .step-num {
+    flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); font-size: .85rem; font-weight: 700;
+  }
+  .step p { margin: 0 0 12px; color: var(--muted); font-size: .96rem; }
+  .step p b { color: var(--fg); }
+  .example { margin-top: 14px; }
+  .example + .example { padding-top: 14px; border-top: 1px solid var(--border); }
+  .pair { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+  .pair.single { grid-template-columns: minmax(0, 260px); justify-content: center; }
+  .pair .arrow { color: var(--faint); font-size: 1.1rem; }
+  figure { margin: 0; text-align: center; min-width: 0; }
+  figure svg { display: block; width: 100%; max-width: 220px; height: auto; margin: 0 auto; }
+  figcaption { font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  figcaption b { display: block; font-size: 1rem; color: var(--fg); }
+  figcaption .good { color: var(--win); font-weight: 600; }
+  figcaption .bad { color: var(--lose); font-weight: 600; }
+  .caption { text-align: center; color: var(--muted); font-size: .86rem; font-style: italic; margin: 8px 0 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; font-size: .82rem; color: var(--muted); margin-top: 4px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; }
+  .legend .town { border: 2.5px solid var(--line); border-radius: 3px; background: var(--board); }
+  .legend .junction { border-radius: 50%; background: var(--accent); }
+  .legend .hollow { border-radius: 50%; border: 2px solid var(--accent); }
+  .facts { margin: 0; padding-left: 18px; color: var(--muted); font-size: .95rem; display: flex; flex-direction: column; gap: 6px; }
+  .facts b { color: var(--fg); }
+  .cta-wrap { text-align: center; margin-top: 26px; }
+  .cta {
+    display: inline-flex; align-items: center; min-height: 48px; padding: 0 26px; border-radius: 12px;
+    background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; font-size: 1.02rem;
+  }
+  @media (prefers-color-scheme: dark) { .cta { color: #0d1020; } }
+  .cta:hover { filter: brightness(1.05); }
+  @media (max-width: 420px) { .step { padding: 14px; } .pair { gap: 4px; } }
+</style>
 </head>
 <body>
 <main>
@@ -24,61 +76,61 @@
     <div>
       <a class="home" href="https://kanealex.com">kanealex.com</a>
       <h1>Fight the Algorithm</h1>
-      <p class="sub" id="subtitle">&nbsp;</p>
-    </div>
-    <div class="top-actions">
-      <button class="icon-btn" id="statsBtn" aria-label="Statistics" title="Statistics">
-        <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>
-      </button>
-      <button class="icon-btn" id="helpBtn" aria-label="How to play" title="How to play">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.4"/><path d="M12 17h.01"/></svg>
-      </button>
+      <p class="sub">How to play</p>
     </div>
   </header>
 
-  <nav class="modes" role="tablist" aria-label="Mode">
-    <button role="tab" id="modeDaily" aria-selected="true">Daily</button>
-    <button role="tab" id="modePractice" aria-selected="false">Practice</button>
-  </nav>
+  <p class="intro">Connect every town to the grid with <b>as little cable as you can</b>, then see whether you can beat a genetic algorithm doing the same. There's a new puzzle every day, and everyone gets the same one.</p>
 
-  <section class="score" aria-live="polite">
-    <div class="score-main">
-      <span class="score-value" id="scoreValue">0.00%</span>
-      <span class="score-label" id="scoreLabel">shorter than the plain network</span>
-    </div>
-    <div class="score-side" id="scoreSide"></div>
-  </section>
+  <div class="steps">
+    <section class="step">
+      <h2><span class="step-num">1</span> Start from the plain network</h2>
+      <p>Each puzzle starts with the towns already joined by the shortest possible set of straight lines between them. That's the plain network, and your job is to beat it.</p>
+      <div class="pair single"><figure data-example="start"></figure></div>
+      <div class="legend"><span><i class="town"></i>Town</span><span><i class="junction"></i>Junction</span><span><i class="hollow"></i>Junction that isn't helping</span></div>
+    </section>
 
-  <div class="board-wrap">
-    <canvas id="board" aria-label="Puzzle board. Tap to add a junction, drag to move it, tap it again to remove it."></canvas>
+    <section class="step">
+      <h2><span class="step-num">2</span> Add junctions to shorten it</h2>
+      <p><b>Tap</b> the board to add a junction: an extra point the cable can branch from. <b>Drag</b> it to fine-tune and <b>tap it again</b> to remove it. The network redraws itself as you go.</p>
+      <div class="example">
+        <div class="pair" data-pair="triangle"></div>
+        <p class="caption">Three towns: one junction in the middle saves over 13%.</p>
+      </div>
+      <div class="example">
+        <div class="pair" data-pair="square"></div>
+        <p class="caption">Four towns in a square: two junctions save almost 9%.</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><span class="step-num">3</span> Aim for 120&deg;</h2>
+      <p>The best junctions have <b>three lines meeting at about 120&deg;</b>, like a Y. A junction joined to only one or two lines can't help, so it shows as hollow.</p>
+      <div class="example">
+        <div class="pair" data-pair="hollow"></div>
+        <p class="caption">A junction off to the side only adds cable.</p>
+      </div>
+      <div class="example">
+        <div class="pair single"><figure data-example="wide"></figure></div>
+        <p class="caption">Where lines already meet at 120&deg; or more, no junction can help. Look elsewhere.</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><span class="step-num">4</span> Fight the algorithm</h2>
+      <p>When you're happy, press <b>Fight the algorithm</b>. A genetic algorithm then tackles the same puzzle while you watch.</p>
+      <ul class="facts">
+        <li>It starts with <b><span data-ga="population"></span> random guesses</b>, each a set of junctions.</li>
+        <li>Each generation, the best quarter survive and breed. Children take junctions from both parents, then mutate by gaining, losing or nudging one.</li>
+        <li>After <b><span data-ga="generations"></span> generations</b>, its best network is final.</li>
+        <li><b>The shortest network wins.</b> You get one go at the daily puzzle, and Practice mode has unlimited puzzles.</li>
+      </ul>
+    </section>
   </div>
 
-  <p class="hint" id="hint">Tap to add a junction. Drag to move it. Tap it again to remove it.</p>
-
-  <div class="controls" id="playControls">
-    <button class="btn" id="undoBtn">Undo</button>
-    <button class="btn" id="clearBtn">Clear</button>
-    <button class="btn primary" id="fightBtn">Fight the algorithm</button>
+  <div class="cta-wrap">
+    <a class="cta" href="play.html">Play today's puzzle &rarr;</a>
   </div>
-
-  <section class="result" id="result" hidden>
-    <h2 id="resultTitle"></h2>
-    <div class="versus">
-      <div class="side you"><span class="who">Your cable</span><span class="pct" id="youLen"></span><span class="sub-pct" id="youPct"></span></div>
-      <div class="side algo"><span class="who">Algorithm's cable</span><span class="pct" id="algoLen"></span><span class="sub-pct" id="algoPct"></span></div>
-    </div>
-    <canvas id="chart" height="90" aria-hidden="true"></canvas>
-    <p class="best" id="bestKnown"></p>
-    <div class="views" role="group" aria-label="Show network">
-      <button id="viewYou" aria-pressed="false">Yours</button>
-      <button id="viewAlgo" aria-pressed="true">Algorithm</button>
-    </div>
-    <div class="controls">
-      <button class="btn primary" id="shareBtn">Share result</button>
-      <button class="btn" id="nextBtn" hidden>New puzzle</button>
-    </div>
-    <p class="next-daily" id="nextDaily"></p>
-  </section>
 
   <footer>
     <span>&copy; <span id="year">2026</span> Kane Alexander</span>
@@ -86,32 +138,64 @@
   </footer>
 </main>
 
-<dialog id="helpDialog">
-  <form method="dialog">
-    <h2>How to play</h2>
-    <p>Every town has to be connected to the grid, and cable is expensive. The plain network joins the towns directly using the least cable possible.</p>
-    <p>You can do better by adding <strong>junctions</strong>: extra points where three or more lines meet. Tap the board to add one, drag it to fine-tune, and tap it again to remove it. Your score is how much shorter your network is than the plain one.</p>
-    <p>Junctions work best where lines meet at about 120&deg;. A hollow junction isn't helping yet: it needs at least three lines.</p>
-    <p>When you're happy, press <strong>Fight the algorithm</strong>. Everyone gets the same puzzle each day, and the same opponent.</p>
-    <h3>The algorithm</h3>
-    <p>It's a genetic algorithm. It starts with a population of {POP} random guesses, each a set of junctions. Every generation the best quarter survive and breed: children take some junctions from each parent, then mutate by gaining, losing or nudging a junction. After {GENS} generations the best network wins.</p>
-    <p>Its nudges start big and get smaller, so it explores first and fine-tunes at the end. Watch the chart after you fight to see it learn.</p>
-    <button class="btn primary" value="close">Got it</button>
-  </form>
-</dialog>
+<script type="module">
+  import { mst, networkLength, greedySteiner, savedPercent, GA_SETTINGS } from "./js/core.js";
 
-<dialog id="statsDialog">
-  <form method="dialog">
-    <h2>Statistics</h2>
-    <div class="stats" id="stats"></div>
-    <p class="muted small">Daily puzzles only. Saved on this device.</p>
-    <button class="btn primary" value="close">Close</button>
-  </form>
-</dialog>
+  // Small worked examples, drawn with the game's own scoring so the numbers are real.
+  // 1 unit = 1 km.
+  const EXAMPLES = {
+    start: { towns: [[30, 60], [120, 30], [200, 80], [70, 170], [190, 190]] },
+    triangle: { towns: [[40, 170], [200, 170], [120, 31.44]] },
+    square: { towns: [[40, 40], [180, 40], [40, 180], [180, 180]] },
+    hollow: { towns: [[40, 170], [200, 170], [120, 31.44]], junctions: [[205, 60]] },
+    wide: { towns: [[30, 150], [120, 98], [210, 150]] },
+  };
 
-<div class="toast" id="toast" role="status" hidden></div>
+  const css = (name) => `var(--${name})`;
 
-<script type="module" src="js/app.js"></script>
+  function svg(towns, junctions, color) {
+    const pts = towns.concat(junctions);
+    const { edges, degree } = mst(pts);
+    const lines = edges.map(([a, b]) =>
+      `<line x1="${pts[a][0]}" y1="${pts[a][1]}" x2="${pts[b][0]}" y2="${pts[b][1]}" stroke="${color}" stroke-width="4" stroke-linecap="round"/>`).join("");
+    const js = junctions.map((p, i) => {
+      const useful = degree[towns.length + i] >= 3;
+      return `<circle cx="${p[0]}" cy="${p[1]}" r="7" fill="${useful ? color : css("board")}" stroke="${color}" stroke-width="3"/>`;
+    }).join("");
+    const ts = towns.map(([x, y]) =>
+      `<rect x="${x - 8}" y="${y - 8}" width="16" height="16" rx="3.5" fill="${css("board")}" stroke="${css("line")}" stroke-width="3"/>`).join("");
+    return `<svg viewBox="0 0 240 220" role="img" aria-hidden="true"><rect x="1" y="1" width="238" height="218" rx="14" fill="${css("board")}" stroke="${css("border")}" stroke-width="1.5"/>${lines}${js}${ts}</svg>`;
+  }
+
+  const km = (l) => l.toLocaleString(undefined, { maximumFractionDigits: 0 }) + " km";
+
+  function figure(towns, junctions, label, base) {
+    const length = networkLength(towns, junctions);
+    const color = junctions.length ? css("accent") : css("faint");
+    let delta = "";
+    if (base !== undefined) {
+      const p = savedPercent(base, length);
+      delta = p > 0.05 ? `<span class="good">${p.toFixed(1)}% shorter</span>` : `<span class="bad">${(-p).toFixed(1)}% longer</span>`;
+    }
+    return `${svg(towns, junctions, color)}<figcaption><b>${km(length)}</b>${label}${delta ? " · " + delta : ""}</figcaption>`;
+  }
+
+  for (const el of document.querySelectorAll("[data-example]")) {
+    const { towns } = EXAMPLES[el.dataset.example];
+    el.innerHTML = figure(towns, [], "plain network");
+  }
+
+  for (const el of document.querySelectorAll("[data-pair]")) {
+    const ex = EXAMPLES[el.dataset.pair];
+    const base = mst(ex.towns).length;
+    const junctions = ex.junctions ?? greedySteiner(ex.towns);
+    const label = junctions.length === 1 ? "with a junction" : `with ${junctions.length} junctions`;
+    el.innerHTML = `<figure>${figure(ex.towns, [], "plain network")}</figure><span class="arrow" aria-hidden="true">&rarr;</span><figure>${figure(ex.towns, junctions, label, base)}</figure>`;
+  }
+
+  for (const el of document.querySelectorAll("[data-ga]")) el.textContent = GA_SETTINGS[el.dataset.ga];
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
 <script data-goatcounter="https://kanealex.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>

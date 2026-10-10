@@ -497,7 +497,6 @@ $("viewYou").onclick = () => { state.view = "you"; render(); };
 $("viewAlgo").onclick = () => { state.view = "algo"; render(); };
 $("modeDaily").onclick = () => { if (state.mode !== "daily") loadDaily(); };
 $("modePractice").onclick = () => { if (state.mode !== "practice") loadPractice(); };
-$("helpBtn").onclick = () => $("helpDialog").showModal();
 $("statsBtn").onclick = showStats;
 
 document.addEventListener("keydown", (e) => {
@@ -506,8 +505,6 @@ document.addEventListener("keydown", (e) => {
 
 // Boot -----------------------------------------------------------------------
 
-const help = $("helpDialog");
-help.innerHTML = help.innerHTML.replace("{POP}", GA_SETTINGS.population).replace("{GENS}", GA_SETTINGS.generations);
 $("year").textContent = new Date().getFullYear();
 
 readColors();
@@ -520,7 +517,4 @@ setInterval(() => {
 }, 30000);
 
 loadDaily();
-if (!store.get("fta:seenHelp", false)) {
-  store.set("fta:seenHelp", true);
-  help.showModal();
-}
+store.set("fta:seenHelp", true); // the how-to-play page skips straight here from now on

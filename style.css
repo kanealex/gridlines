@@ -44,7 +44,7 @@ h1 { font-size: clamp(1.6rem, 6vw, 2.1rem); line-height: 1.1; margin: 4px 0 2px;
 .top-actions { display: flex; gap: 6px; padding-top: 18px; }
 .icon-btn {
   width: 40px; height: 40px; border-radius: 11px; border: 1px solid var(--border);
-  background: var(--card); display: grid; place-items: center; cursor: pointer;
+  background: var(--card); display: grid; place-items: center; cursor: pointer; color: inherit;
 }
 .icon-btn:hover { border-color: var(--border-strong); }
 .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

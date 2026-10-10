@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fight the Algorithm</title>
+<meta name="description" content="A daily puzzle: connect the towns with as little cable as you can, then see if you beat a genetic algorithm.">
+<link rel="canonical" href="https://fight.kanealex.com/play.html">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fight.kanealex.com/">
+<meta property="og:title" content="Fight the Algorithm">
+<meta property="og:description" content="Connect the towns with less cable than a genetic algorithm. A new puzzle every day.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Fight the Algorithm">
+<meta name="twitter:description" content="Connect the towns with less cable than a genetic algorithm. A new puzzle every day.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f5bd3'/%3E%3Cg stroke='%23fff' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M32 34L16 18M32 34L48 18M32 34V50'/%3E%3C/g%3E%3Ccircle cx='32' cy='34' r='5' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="top">
+    <div>
+      <a class="home" href="https://kanealex.com">kanealex.com</a>
+      <h1>Fight the Algorithm</h1>
+      <p class="sub" id="subtitle">&nbsp;</p>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="statsBtn" aria-label="Statistics" title="Statistics">
+        <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>
+      </button>
+      <a class="icon-btn" href="index.html" aria-label="How to play" title="How to play">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.4"/><path d="M12 17h.01"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <nav class="modes" role="tablist" aria-label="Mode">
+    <button role="tab" id="modeDaily" aria-selected="true">Daily</button>
+    <button role="tab" id="modePractice" aria-selected="false">Practice</button>
+  </nav>
+
+  <section class="score" aria-live="polite">
+    <div class="score-main">
+      <span class="score-value" id="scoreValue">0.00%</span>
+      <span class="score-label" id="scoreLabel">shorter than the plain network</span>
+    </div>
+    <div class="score-side" id="scoreSide"></div>
+  </section>
+
+  <div class="board-wrap">
+    <canvas id="board" aria-label="Puzzle board. Tap to add a junction, drag to move it, tap it again to remove it."></canvas>
+  </div>
+
+  <p class="hint" id="hint">Tap to add a junction. Drag to move it. Tap it again to remove it.</p>
+
+  <div class="controls" id="playControls">
+    <button class="btn" id="undoBtn">Undo</button>
+    <button class="btn" id="clearBtn">Clear</button>
+    <button class="btn primary" id="fightBtn">Fight the algorithm</button>
+  </div>
+
+  <section class="result" id="result" hidden>
+    <h2 id="resultTitle"></h2>
+    <div class="versus">
+      <div class="side you"><span class="who">Your cable</span><span class="pct" id="youLen"></span><span class="sub-pct" id="youPct"></span></div>
+      <div class="side algo"><span class="who">Algorithm's cable</span><span class="pct" id="algoLen"></span><span class="sub-pct" id="algoPct"></span></div>
+    </div>
+    <canvas id="chart" height="90" aria-hidden="true"></canvas>
+    <p class="best" id="bestKnown"></p>
+    <div class="views" role="group" aria-label="Show network">
+      <button id="viewYou" aria-pressed="false">Yours</button>
+      <button id="viewAlgo" aria-pressed="true">Algorithm</button>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="shareBtn">Share result</button>
+      <button class="btn" id="nextBtn" hidden>New puzzle</button>
+    </div>
+    <p class="next-daily" id="nextDaily"></p>
+  </section>
+
+  <footer>
+    <span>&copy; <span id="year">2026</span> Kane Alexander</span>
+    <a href="https://kanealex.com">More projects</a>
+  </footer>
+</main>
+
+<dialog id="statsDialog">
+  <form method="dialog">
+    <h2>Statistics</h2>
+    <div class="stats" id="stats"></div>
+    <p class="muted small">Daily puzzles only. Saved on this device.</p>
+    <button class="btn primary" value="close">Close</button>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+<script data-goatcounter="https://kanealex.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
