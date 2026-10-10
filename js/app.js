@@ -284,14 +284,15 @@ function recordVersus() {
 
 // Stats and levels -----------------------------------------------------------
 
-// "3 day streak (best 5)" next to the Leaderboard and Stats/History buttons.
+// "3 day streak (best 5)" next to Leaderboard and Stats/History, worded like
+// Semantic Drift: hidden with no streak, best shown only when it's higher.
 function renderStreak() {
   const d = store.get("fta:dailyStats", null);
   const el = $("streakBadge");
-  if (!d?.played) { el.textContent = ""; return; }
   const yesterday = localDateKey(new Date(Date.now() - 86400000));
-  const streak = d.last === localDateKey() || d.last === yesterday ? d.streak : 0;
-  el.textContent = `${streak} day streak (best ${d.best})`;
+  const streak = d && (d.last === localDateKey() || d.last === yesterday) ? d.streak : 0;
+  el.hidden = !streak;
+  if (streak) el.textContent = `${streak} day streak` + (d.best > streak ? ` (best ${d.best})` : "");
 }
 
 function showStats() {
@@ -563,6 +564,7 @@ function render() {
   const you = yourLength();
 
   for (const b of document.querySelectorAll(".modes button")) b.setAttribute("aria-selected", b.dataset.mode === mode);
+  $("dailyRow").hidden = mode !== "daily";
   $("subtitle").textContent = mode === "daily"
     ? `Daily #${puzzleNumber(puzzle.key)} · ${new Date(puzzle.key + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`
     : mode === "story"

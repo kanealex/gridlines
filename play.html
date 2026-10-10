@@ -29,19 +29,20 @@
     </div>
   </header>
 
-  <div class="info-row">
-    <span id="streakBadge" class="streak"></span>
-    <span class="info-actions">
-      <button type="button" id="leaderboardBtn" class="toggle-btn">Leaderboard</button>
-      <button type="button" id="statsBtn" class="toggle-btn">Stats/History</button>
-    </span>
-  </div>
-
   <nav class="modes" role="tablist" aria-label="Mode">
     <button role="tab" id="modeDaily" data-mode="daily" aria-selected="true">Daily</button>
     <button role="tab" id="modeVersus" data-mode="versus" aria-selected="false">Practice</button>
     <button role="tab" id="modeStory" data-mode="story" aria-selected="false">Story</button>
   </nav>
+
+  <div class="info-row" id="dailyRow">
+    <span class="info-label">Today's challenge</span>
+    <span class="info-actions">
+      <span id="streakBadge" class="streak" hidden></span>
+      <button type="button" id="leaderboardBtn" class="toggle-btn">Leaderboard</button>
+      <button type="button" id="statsBtn" class="toggle-btn">Stats/History</button>
+    </span>
+  </div>
 
   <section class="mode-bar" id="storyBar" hidden>
     <div class="mode-bar-main">
