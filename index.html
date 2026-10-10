@@ -58,8 +58,6 @@
   .legend .town { border: 2.5px solid var(--line); border-radius: 3px; background: var(--board); }
   .legend .junction { border-radius: 50%; background: var(--accent); }
   .legend .hollow { border-radius: 50%; border: 2px solid var(--accent); }
-  .facts { margin: 0; padding-left: 18px; color: var(--muted); font-size: .95rem; display: flex; flex-direction: column; gap: 6px; }
-  .facts b { color: var(--fg); }
   .cta-wrap { text-align: center; margin-top: 26px; }
   .cta {
     display: inline-flex; align-items: center; min-height: 48px; padding: 0 26px; border-radius: 12px;
@@ -105,23 +103,6 @@
       </div>
     </section>
 
-    <section class="step">
-      <h2><span class="step-num">3</span> Pick a mode</h2>
-      <ul class="facts">
-        <li><b>Daily.</b> One new puzzle a day, the same for everyone. Submit once and you're ranked by how close you got to the best known network, from Trainee up to Optimal.</li>
-        <li><b>Story.</b> <span data-levels></span> levels that build from three towns to twelve. Each has a goal to hit and a limit on how many junctions you can use. Meet the goal to unlock the next level, and get closer to the best known network for up to three stars.</li>
-        <li><b>vs Algorithm.</b> Random puzzles against a genetic algorithm on Easy, Normal or Hard. Make your network, then watch it evolve its own. <b>The shortest network wins.</b></li>
-      </ul>
-    </section>
-
-    <section class="step">
-      <h2><span class="step-num">4</span> How the algorithm works</h2>
-      <ul class="facts">
-        <li>It starts with a population of random guesses, each a set of junctions.</li>
-        <li>Each generation, the best quarter survive and breed. Children take junctions from both parents, then mutate by gaining, losing or nudging one.</li>
-        <li>On Normal it runs <b><span data-ga="generations"></span> generations</b> of <b><span data-ga="population"></span> guesses</b>. Hard runs longer with a bigger population.</li>
-      </ul>
-    </section>
   </div>
 
   <div class="cta-wrap">
@@ -135,8 +116,7 @@
 </main>
 
 <script type="module">
-  import { mst, networkLength, greedySteiner, savedPercent, GA_SETTINGS } from "./js/core.js";
-  import { LEVEL_COUNT } from "./js/story.js";
+  import { mst, networkLength, greedySteiner, savedPercent } from "./js/core.js";
 
   // Small worked examples, drawn with the game's own scoring so the numbers are real.
   // 1 unit = 1 km.
@@ -188,8 +168,6 @@
     el.innerHTML = `<figure>${figure(ex.towns, [], "plain network")}</figure><span class="arrow" aria-hidden="true">&rarr;</span><figure>${figure(ex.towns, junctions, label, base)}</figure>`;
   }
 
-  for (const el of document.querySelectorAll("[data-levels]")) el.textContent = LEVEL_COUNT;
-  for (const el of document.querySelectorAll("[data-ga]")) el.textContent = GA_SETTINGS[el.dataset.ga];
   document.getElementById("year").textContent = new Date().getFullYear();
 </script>
 <script data-goatcounter="https://kanealex.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
