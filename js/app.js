@@ -584,20 +584,20 @@ function shareText() {
     const share = Math.max(0, Math.min(1, shareOfBest()));
     const filled = Math.round(share * 10);
     return [
-      `Fight the Algorithm #${puzzleNumber(state.puzzle.key)}`,
+      `Steiner Point #${puzzleNumber(state.puzzle.key)}`,
       `${rankFor(shareOfBest())}: ${Math.round(share * 100)}% of the best network`,
       "\u{1F7E9}".repeat(filled) + "⬜".repeat(10 - filled),
       `${fmtLen(yourLength())} (${describe(you)})`,
-      "https://fight.kanealex.com",
+      "https://steiner.kanealex.com",
     ].join("\n");
   }
   const won = versusGap() > 0;
   return [
-    `Fight the Algorithm: vs ${DIFFICULTIES[state.difficulty].label}`,
+    `Steiner Point: vs ${DIFFICULTIES[state.difficulty].label}`,
     `\u{1F9D1} Me: ${fmtLen(yourLength())} (${describe(you)})`,
     `\u{1F9EC} Algorithm: ${fmtLen(state.algo.length)} (${describe(pct(state.algo.length))})`,
     won ? "\u{1F3C6} Beat the algorithm" : "\u{1F916} The algorithm won",
-    "https://fight.kanealex.com",
+    "https://steiner.kanealex.com",
   ].join("\n");
 }
 

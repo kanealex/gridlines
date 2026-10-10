@@ -1,6 +1,6 @@
-# Fight the Algorithm
+# Steiner Point
 
-A daily puzzle at [fight.kanealex.com](https://fight.kanealex.com): connect the towns with as little cable as you can by adding junctions, then see whether you beat a genetic algorithm.
+A puzzle game at [steiner.kanealex.com](https://steiner.kanealex.com): connect the towns with as little cable as you can by adding junctions (Steiner points). Three modes: a ranked daily puzzle, story levels, and head to head against a genetic algorithm.
 
 A rebuild of the 2021 Power Grid Optimization game from the old resume site. Under the hood it's the Euclidean Steiner tree problem: score is the length of the minimum spanning tree over towns plus your junctions.
 
@@ -15,4 +15,4 @@ The daily puzzle and the algorithm are both seeded from the player's local date,
 
 ## Deploy
 
-Static files served by Caddy from `/var/www/fight-the-algorithm` on the Vultr server. Pushes to `main` deploy via `.github/workflows/deploy.yml` (SSH in and `git pull --ff-only`).
+Static files served by Caddy from `/var/www/steiner-point` on the Vultr server. Pushes to `main` deploy via `.github/workflows/deploy.yml` (SSH in and `git pull --ff-only`).

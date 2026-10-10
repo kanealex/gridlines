@@ -1,7 +1,7 @@
 name: Deploy
 
-# Runs on every push to main: pulls the latest main into /var/www/fight-the-algorithm
-# on the Vultr server, which Caddy serves at fight.kanealex.com. Uses the same
+# Runs on every push to main: pulls the latest main into /var/www/steiner-point
+# on the Vultr server, which Caddy serves at steiner.kanealex.com. Uses the same
 # deploy-only SSH key as the homepage, OBD Dash and Semantic Drift (DEPLOY_SSH_KEY secret).
 
 on:
@@ -20,5 +20,5 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            git -C /var/www/fight-the-algorithm pull --ff-only
-            git -C /var/www/fight-the-algorithm log -1 --oneline
+            git -C /var/www/steiner-point pull --ff-only
+            git -C /var/www/steiner-point log -1 --oneline
