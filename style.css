@@ -34,10 +34,13 @@ main {
 }
 
 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+/* Link back to kanealex.com, the same on every app. */
 .home {
+  display: inline-flex; align-items: center; gap: 5px;
   font-size: .75rem; letter-spacing: .08em; text-transform: uppercase;
   color: var(--faint); text-decoration: none;
 }
+.home svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; margin-top: -1px; }
 .home:hover { color: var(--fg); }
 h1 { font-size: clamp(1.6rem, 6vw, 2.1rem); line-height: 1.1; margin: 4px 0 2px; letter-spacing: -0.03em; }
 #howToPlayLink { display: inline-block; margin: 2px 0 8px; font-size: .8rem; font-weight: 700; color: var(--accent); text-decoration: none; }
