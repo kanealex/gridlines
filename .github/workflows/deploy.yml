@@ -1,0 +1,24 @@
+name: Deploy
+
+# Runs on every push to main: pulls the latest main into /var/www/fight-the-algorithm
+# on the Vultr server, which Caddy serves at fight.kanealex.com. Uses the same
+# deploy-only SSH key as the homepage, OBD Dash and Semantic Drift (DEPLOY_SSH_KEY secret).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull latest main on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            git -C /var/www/fight-the-algorithm pull --ff-only
+            git -C /var/www/fight-the-algorithm log -1 --oneline
