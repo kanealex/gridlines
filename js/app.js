@@ -307,7 +307,7 @@ function render() {
   $("scoreValue").textContent = fmtPct(Math.abs(pct(you)));
   $("scoreValue").style.color = pct(you) < -0.005 ? "var(--lose)" : state.junctions.length === 0 ? "var(--faint)" : "var(--accent)";
   $("scoreLabel").textContent = pct(you) < -0.005 ? "longer than the plain network" : "shorter than the plain network";
-  $("scoreSide").innerHTML = `${fmtLen(you)} of cable<br>Plain network ${fmtLen(puzzle.base)}`;
+  $("scoreSide").innerHTML = `${fmtLen(you)} of cable<br>plain: ${fmtLen(puzzle.base)}`;
 
   board.classList.toggle("locked", phase !== "play");
   $("playControls").hidden = phase !== "play";

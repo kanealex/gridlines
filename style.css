@@ -40,6 +40,8 @@ main {
 }
 .home:hover { color: var(--fg); }
 h1 { font-size: clamp(1.6rem, 6vw, 2.1rem); line-height: 1.1; margin: 4px 0 2px; letter-spacing: -0.03em; }
+#howToPlayLink { display: inline-block; margin: 2px 0 8px; font-size: .8rem; font-weight: 700; color: var(--accent); text-decoration: none; }
+#howToPlayLink:hover { text-decoration: underline; }
 .sub { margin: 0; color: var(--muted); font-size: .92rem; }
 .top-actions { display: flex; gap: 6px; padding-top: 18px; }
 .icon-btn {
@@ -63,6 +65,7 @@ h1 { font-size: clamp(1.6rem, 6vw, 2.1rem); line-height: 1.1; margin: 4px 0 2px;
 .score-main { display: flex; flex-direction: column; }
 .score-value { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .score-label, .score-side { color: var(--muted); font-size: .85rem; }
+.score-side { white-space: nowrap; }
 .score-side { text-align: right; font-variant-numeric: tabular-nums; }
 
 .board-wrap { position: relative; }
