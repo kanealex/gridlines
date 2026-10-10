@@ -104,20 +104,7 @@
     </section>
 
     <section class="step">
-      <h2><span class="step-num">3</span> Aim for 120&deg;</h2>
-      <p>The best junctions have <b>three lines meeting at about 120&deg;</b>, like a Y. A junction joined to only one or two lines can't help, so it shows as hollow.</p>
-      <div class="example">
-        <div class="pair" data-pair="hollow"></div>
-        <p class="caption">A junction off to the side only adds cable.</p>
-      </div>
-      <div class="example">
-        <div class="pair single"><figure data-example="wide"></figure></div>
-        <p class="caption">Where lines already meet at 120&deg; or more, no junction can help. Look elsewhere.</p>
-      </div>
-    </section>
-
-    <section class="step">
-      <h2><span class="step-num">4</span> Fight the algorithm</h2>
+      <h2><span class="step-num">3</span> Fight the algorithm</h2>
       <p>When you're happy, press <b>Fight the algorithm</b>. A genetic algorithm then tackles the same puzzle while you watch.</p>
       <ul class="facts">
         <li>It starts with <b><span data-ga="population"></span> random guesses</b>, each a set of junctions.</li>
@@ -147,8 +134,6 @@
     start: { towns: [[30, 60], [120, 30], [200, 80], [70, 170], [190, 190]] },
     triangle: { towns: [[40, 170], [200, 170], [120, 31.44]] },
     square: { towns: [[40, 40], [180, 40], [40, 180], [180, 180]] },
-    hollow: { towns: [[40, 170], [200, 170], [120, 31.44]], junctions: [[205, 60]] },
-    wide: { towns: [[30, 150], [120, 98], [210, 150]] },
   };
 
   const css = (name) => `var(--${name})`;
