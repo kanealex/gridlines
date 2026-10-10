@@ -8,7 +8,7 @@ A rebuild of the 2021 Power Grid Optimization game from the old resume site. Und
 - `play.html`, `style.css`: the game. No build step, no dependencies.
 - `js/core.js`: seeded puzzle generation, Prim's MST, the genetic algorithm, and a greedy Steiner heuristic for the "best known" score. No DOM, so it also runs in Node.
 - `js/story.js`: story mode levels (8 hand-made, the rest seeded), goals, junction limits and stars.
-- `js/app.js`: the three modes (Daily, Story, vs Algorithm), board, touch/mouse input, the fight animation, stats and sharing.
+- `js/app.js`: the three modes (Daily, Practice against the algorithm, Story), board, touch/mouse input, the fight animation, stats and sharing.
 - `server/server.py`: serves the site plus the scores API behind the Daily rank line and the 7-day leaderboard. Python standard library only; scores go in `data/gridlines.db` (SQLite).
 - `tools/tune.js`: `node tools/tune.js 30` prints how the algorithm scores against the best known over the next 30 puzzles. Use it after changing `GA_SETTINGS`.
 

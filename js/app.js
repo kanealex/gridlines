@@ -567,7 +567,7 @@ function render() {
     ? `Daily #${puzzleNumber(puzzle.key)} · ${new Date(puzzle.key + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`
     : mode === "story"
       ? `Story · Level ${state.level.index + 1} of ${LEVEL_COUNT}`
-      : `vs Algorithm · ${puzzle.towns.length} towns`;
+      : `Practice · ${puzzle.towns.length} towns vs the algorithm`;
 
   $("scoreValue").textContent = fmtPct(Math.abs(pct(you)));
   $("scoreLabel").textContent = pct(you) < -0.005 ? "longer than the plain network" : "shorter than the plain network";
@@ -722,7 +722,7 @@ function updateCountdown() {
   const now = new Date();
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const mins = Math.max(1, Math.ceil((tomorrow - now) / 60000));
-  el.textContent = `Next puzzle in ${Math.floor(mins / 60)}h ${mins % 60}m. Try Story or vs Algorithm in the meantime.`;
+  el.textContent = `Next puzzle in ${Math.floor(mins / 60)}h ${mins % 60}m. Try Practice or Story in the meantime.`;
 }
 
 function shareText() {
@@ -902,7 +902,7 @@ setInterval(() => {
   if (state.mode === "daily" && state.phase === "done") submitDailyResult();
 }, 30000);
 
-const hashMode = location.hash.slice(1);
+const hashMode = location.hash.slice(1) === "practice" ? "versus" : location.hash.slice(1);
 load(["daily", "story", "versus"].includes(hashMode) ? hashMode : store.get("fta:mode", "daily"));
 renderStreak();
 store.set("fta:seenHelp", true); // the how-to-play page skips straight here from now on
