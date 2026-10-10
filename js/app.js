@@ -74,7 +74,7 @@ function yourLength() { return networkLength(state.puzzle.towns, state.junctions
 function pct(length) { return savedPercent(state.puzzle.base, length); }
 const fmtPct = (p) => (Math.abs(p) < 0.005 ? "0.00" : p.toFixed(2)) + "%";
 const describe = (p) => (p < -0.005 ? `${fmtPct(-p)} longer` : `${fmtPct(p)} shorter`);
-const fmtLen = (l) => Math.round(l).toLocaleString() + " km";
+const fmtLen = (l) => l.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " km";
 
 function bestKnown() {
   const { puzzle, algo } = state;
@@ -133,7 +133,7 @@ function recordDaily() {
   const s = store.get("fta:stats", { played: 0, wins: 0, streak: 0, best: 0, last: null, lastWin: null });
   const key = state.puzzle.key;
   if (s.last === key) return;
-  const won = yourLength() < state.algo.length;
+  const won = Math.round((state.algo.length - yourLength()) * 10) / 10 > 0;
   const yesterday = localDateKey(new Date(Date.now() - 86400000));
   s.played++;
   if (won) {
@@ -337,24 +337,29 @@ function renderResult() {
   if (phase === "play") return;
   const you = pct(yourLength());
   const title = $("resultTitle");
+  const yourLen = yourLength();
+  const theirLen = phase === "fighting" ? state.live.length : algo.length;
+  $("youLen").textContent = fmtLen(yourLen);
+  $("algoLen").textContent = fmtLen(theirLen);
+  $("youPct").textContent = describe(pct(yourLen));
+  $("algoPct").textContent = describe(pct(theirLen));
+  // Shortest network wins. Compare rounded to 0.1 km so a "win" is always visible in the numbers.
+  const gap = Math.round((theirLen - yourLen) * 10) / 10;
+  box.querySelector(".side.you").classList.toggle("lead", gap > 0);
+  box.querySelector(".side.algo").classList.toggle("lead", gap < 0);
   if (phase === "fighting") {
-    title.textContent = "Fighting…";
+    title.textContent = "Fighting\u2026";
     title.className = "";
-    $("youPct").textContent = fmtPct(you);
-    $("algoPct").textContent = fmtPct(pct(state.live.length));
     $("bestKnown").textContent = "";
   } else {
-    const them = pct(algo.length);
-    const diff = yourLength() - algo.length;
-    if (diff < 0) { title.textContent = "You beat the algorithm"; title.className = "win"; }
-    else if (diff === 0) { title.textContent = "A dead heat"; title.className = ""; }
-    else { title.textContent = "The algorithm wins"; title.className = "lose"; }
-    $("youPct").textContent = fmtPct(you);
-    $("algoPct").textContent = fmtPct(them);
+    const by = fmtLen(Math.abs(gap));
+    if (gap > 0) { title.textContent = `You win by ${by}`; title.className = "win"; }
+    else if (gap === 0) { title.textContent = "A dead heat"; title.className = ""; }
+    else { title.textContent = `The algorithm wins by ${by}`; title.className = "lose"; }
     const best = bestKnown();
-    $("bestKnown").textContent = yourLength() <= best + 1e-9
-      ? `Best known: ${fmtPct(pct(best))}. That's you.`
-      : `Best known for this puzzle: ${fmtPct(pct(best))}`;
+    $("bestKnown").textContent = yourLen <= best + 1e-9
+      ? `Shortest known network: ${fmtLen(best)}. That's yours.`
+      : `Shortest known network for this puzzle: ${fmtLen(best)}`;
   }
   const done = phase === "done";
   $("viewYou").disabled = !done;
@@ -379,12 +384,12 @@ function updateCountdown() {
 function shareText() {
   const you = pct(yourLength());
   const them = pct(state.algo.length);
-  const won = yourLength() < state.algo.length;
+  const won = Math.round((state.algo.length - yourLength()) * 10) / 10 > 0;
   const head = state.mode === "daily" ? `Fight the Algorithm #${puzzleNumber(state.puzzle.key)}` : "Fight the Algorithm (practice)";
   return [
     head,
-    `\u{1F9D1} Me: ${describe(you)}`,
-    `\u{1F9EC} Algorithm: ${describe(them)}`,
+    `\u{1F9D1} Me: ${fmtLen(yourLength())} (${describe(you)})`,
+    `\u{1F9EC} Algorithm: ${fmtLen(state.algo.length)} (${describe(them)})`,
     won ? "\u{1F3C6} Beat the algorithm" : "\u{1F916} The algorithm won",
     "https://fight.kanealex.com",
   ].join("\n");

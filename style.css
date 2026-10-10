@@ -97,6 +97,10 @@ h1 { font-size: clamp(1.6rem, 6vw, 2.1rem); line-height: 1.1; margin: 4px 0 2px;
 .side.algo { background: var(--algo-soft); }
 .who { font-size: .8rem; color: var(--muted); font-weight: 600; }
 .side .pct { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.side .sub-pct { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.side.lead { box-shadow: inset 0 0 0 2px currentColor; }
+.side.you.lead { color: var(--accent); }
+.side.algo.lead { color: var(--algo); }
 .side.you .pct { color: var(--accent); }
 .side.algo .pct { color: var(--algo); }
 #chart { display: block; width: 100%; height: 90px; }
