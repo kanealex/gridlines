@@ -87,7 +87,7 @@
       <h2><span class="step-num">1</span> Start from the plain network</h2>
       <p>Each puzzle starts with the towns already joined by the shortest possible set of straight lines between them. That's the plain network, and your job is to beat it.</p>
       <div class="example">
-        <div class="pair" data-start="start"></div>
+        <div class="pair single" data-start="start"></div>
         <p class="caption">Every puzzle gives you the towns and the plain network. Your score is how much cable you save.</p>
       </div>
     </section>
@@ -169,8 +169,7 @@
 
   for (const el of document.querySelectorAll("[data-start]")) {
     const { towns } = EXAMPLES[el.dataset.start];
-    const dots = svg(towns, [], css("faint")).replace(/<line [^>]*\/>/g, "");
-    el.innerHTML = `<figure>${dots}<figcaption><b>${towns.length} towns</b>to connect</figcaption></figure><span class="arrow" aria-hidden="true">&rarr;</span><figure>${figure(towns, [], "plain network")}</figure>`;
+    el.innerHTML = `<figure>${figure(towns, [], "plain network")}</figure>`;
   }
 
   for (const el of document.querySelectorAll("[data-pair]")) {
